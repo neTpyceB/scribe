@@ -267,5 +267,46 @@ defmodule SocialScribe.Workers.BotStatusPollerTest do
       # No meeting record should have been created because transcript fetching failed
       assert Meetings.get_meeting_by_recall_bot_id(updated_bot.id) == nil
     end
+
+    test "handles empty status_changes from Recall without crashing and processes done bot" do
+      user = user_fixture()
+      calendar_event = calendar_event_fixture(%{user_id: user.id})
+
+      bot_record =
+        recall_bot_fixture(%{
+          user_id: user.id,
+          calendar_event_id: calendar_event.id,
+          recall_bot_id: "bot-empty-status-changes-222",
+          status: "in_waiting_room"
+        })
+
+      expect(RecallApiMock, :get_bot, fn "bot-empty-status-changes-222" ->
+        body =
+          @mock_bot_api_info_done
+          |> Map.put(:id, "bot-empty-status-changes-222")
+          |> Map.put(:status_changes, [])
+          |> Map.put(:status, "done")
+
+        {:ok, %Tesla.Env{body: body}}
+      end)
+
+      expect(RecallApiMock, :get_bot_transcript, fn "bot-empty-status-changes-222" ->
+        {:ok, %Tesla.Env{body: @mock_transcript_data}}
+      end)
+
+      expect(RecallApiMock, :get_bot_participants, fn "bot-empty-status-changes-222" ->
+        {:ok, %Tesla.Env{body: []}}
+      end)
+
+      expect(AIGeneratorMock, :generate_follow_up_email, fn @mock_transcript_data ->
+        {:ok, "Follow-up email draft"}
+      end)
+
+      assert BotStatusPoller.perform(%Oban.Job{}) == :ok
+
+      updated_bot = Bots.get_recall_bot!(bot_record.id)
+      assert updated_bot.status == "done"
+      assert Meetings.get_meeting_by_recall_bot_id(updated_bot.id)
+    end
   end
 end

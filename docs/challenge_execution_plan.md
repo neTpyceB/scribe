@@ -35,6 +35,8 @@ Deliver a complete, production-style submission for the Scribe challenge that is
 27. Added overflow guards for other external ingest paths (`meetings.title`, `meeting_participants.name/recall_participant_id`, `recall_bots` string fields) plus regression tests.
 28. Updated pending-bot filtering to treat `fatal` as terminal so poller does not keep retrying unrecoverable bots.
 29. Hardened Railway migration startup for constrained DB plans: migrations now run with `MIGRATION_POOL_SIZE` (default `2`) and production DB queue settings are configurable via env.
+30. Fixed Recall polling reliability bug for past-meeting sync: `BotStatusPoller` now safely handles empty `status_changes` payloads, falls back to top-level status/current status, and no longer crashes before creating meetings.
+31. Added regression test for Recall payloads with empty `status_changes` to guarantee completed bots still create meeting records.
 
 ### In Progress
 1. Salesforce meeting modal flow implementation.
