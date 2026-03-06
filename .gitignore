@@ -1,5 +1,8 @@
 .env
 .envrc
+.env.*
+!.env.example
+.tool-versions
  
 # The directory Mix will write compiled artifacts to.
 /_build/
@@ -38,3 +41,10 @@ social_scribe-*.tar
 npm-debug.log
 /assets/node_modules/
 
+# OS / editor artifacts
+.DS_Store
+Thumbs.db
+.idea/
+*.iml
+.vscode/
+.elixir_ls/
