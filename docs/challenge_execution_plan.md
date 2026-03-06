@@ -29,6 +29,11 @@ Deliver a complete, production-style submission for the Scribe challenge that is
 21. Hardened Railway production startup to enforce migration-before-server with retrying release script and Docker `ENTRYPOINT` wiring.
 22. Completed Salesforce modal Step 2: meeting details Salesforce CTA + LiveView open/close state/events with tests.
 23. Fixed Railway release startup compatibility by making `rel/env.sh.eex` platform-safe (Fly-only node naming; non-Fly defaults to `RELEASE_DISTRIBUTION=none`).
+24. Fixed calendar sync meeting-link detection for Zoom/Meet/Teams by extracting URLs from `hangoutLink`, `location`, `description`, and conference entry points.
+25. Restored production endpoint binding fix in `config/runtime.exs` to default to IPv4 on Railway (`PHX_IPV6=true` optional override).
+26. Fixed calendar sync stability regression by handling oversized Google event fields safely (truncate/hash) and preventing sync task crashes on persistence errors.
+27. Added overflow guards for other external ingest paths (`meetings.title`, `meeting_participants.name/recall_participant_id`, `recall_bots` string fields) plus regression tests.
+28. Updated pending-bot filtering to treat `fatal` as terminal so poller does not keep retrying unrecoverable bots.
 
 ### In Progress
 1. Salesforce meeting modal flow implementation.

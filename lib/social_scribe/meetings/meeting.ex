@@ -31,6 +31,17 @@ defmodule SocialScribe.Meetings.Meeting do
       :recall_bot_id,
       :follow_up_email
     ])
+    |> truncate_string(:title, 255)
     |> validate_required([:title, :recorded_at, :calendar_event_id, :recall_bot_id])
+  end
+
+  defp truncate_string(changeset, field, max) do
+    update_change(changeset, field, fn value ->
+      if is_binary(value) and String.length(value) > max do
+        String.slice(value, 0, max)
+      else
+        value
+      end
+    end)
   end
 end
