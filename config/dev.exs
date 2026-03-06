@@ -2,13 +2,13 @@ import Config
 
 # Configure your database
 config :social_scribe, SocialScribe.Repo,
-  username: "postgres",
-  password: "postgres",
-  hostname: "localhost",
-  database: "social_scribe_dev",
+  username: System.get_env("POSTGRES_USER", "postgres"),
+  password: System.get_env("POSTGRES_PASSWORD", "postgres"),
+  hostname: System.get_env("POSTGRES_HOST", "localhost"),
+  database: System.get_env("POSTGRES_DB", "social_scribe_dev"),
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
-  pool_size: 10
+  pool_size: String.to_integer(System.get_env("POSTGRES_POOL_SIZE", "10"))
 
 # For development, we disable any cache and enable
 # debugging and code reloading.

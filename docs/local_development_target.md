@@ -1,21 +1,24 @@
-# Local Development Target (Docker-First)
+# Local Development Runtime (Docker-First)
 
-## Target State
+# Implemented State
 1. Local development runs via Docker.
 2. App and PostgreSQL run in separate containers.
-3. App is reachable at `http://localhost:4000`.
+3. App is reachable at `http://localhost:4100`.
 4. Setup should not require host-installed Elixir to run the app.
 
-## Expected Components
+## Components
 1. `app` service (Phoenix application).
 2. `postgres` service (database).
-3. Optional helper services if needed later (mailbox/test tools).
 
-## Operational Requirements
-1. One documented startup command for contributors.
-2. One documented migration command.
-3. One documented test command.
-4. Clear `.env`-based configuration.
+## Default Local Ports
+1. App: `4100` (container `4000`)
+2. PostgreSQL: `55432` (container `5432`)
 
-## Notes
-This is a target document. Implementation will follow the execution plan and README updates.
+## Operational Commands
+1. Start: `make up`
+2. Test: `make test`
+3. Migrate: `make migrate`
+4. Logs: `make logs`
+5. Stop: `make down`
+
+Detailed guide: [Local Setup](docs/local_setup.md)

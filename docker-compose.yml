@@ -1,0 +1,72 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: social_scribe_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-social_scribe_dev}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "${POSTGRES_PORT:-55432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-social_scribe_dev}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+    container_name: social_scribe_app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      MIX_ENV: dev
+      PHX_HOST: ${PHX_HOST:-localhost}
+      PORT: 4000
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-social_scribe_dev}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_POOL_SIZE: ${POSTGRES_POOL_SIZE:-10}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:4100/auth/google/callback}
+      RECALL_API_KEY: ${RECALL_API_KEY:-}
+      RECALL_REGION: ${RECALL_REGION:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      HUBSPOT_CLIENT_ID: ${HUBSPOT_CLIENT_ID:-}
+      HUBSPOT_CLIENT_SECRET: ${HUBSPOT_CLIENT_SECRET:-}
+      HUBSPOT_REDIRECT_URI: ${HUBSPOT_REDIRECT_URI:-http://localhost:4100/auth/hubspot/callback}
+      SALESFORCE_CLIENT_ID: ${SALESFORCE_CLIENT_ID:-}
+      SALESFORCE_CLIENT_SECRET: ${SALESFORCE_CLIENT_SECRET:-}
+      SALESFORCE_REDIRECT_URI: ${SALESFORCE_REDIRECT_URI:-http://localhost:4100/auth/salesforce/callback}
+      LINKEDIN_CLIENT_ID: ${LINKEDIN_CLIENT_ID:-}
+      LINKEDIN_CLIENT_SECRET: ${LINKEDIN_CLIENT_SECRET:-}
+      LINKEDIN_REDIRECT_URI: ${LINKEDIN_REDIRECT_URI:-http://localhost:4100/auth/linkedin/callback}
+      FACEBOOK_CLIENT_ID: ${FACEBOOK_CLIENT_ID:-}
+      FACEBOOK_CLIENT_SECRET: ${FACEBOOK_CLIENT_SECRET:-}
+      FACEBOOK_REDIRECT_URI: ${FACEBOOK_REDIRECT_URI:-http://localhost:4100/auth/facebook/callback}
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE:-dev_only_change_me}
+    ports:
+      - "${APP_PORT:-4100}:4000"
+    volumes:
+      - .:/app
+      - mix_deps:/app/deps
+      - mix_build:/app/_build
+      - hex_cache:/root/.hex
+      - rebar_cache:/root/.cache/rebar3
+    command: >
+      sh -c "mix deps.get && mix ecto.create && mix ecto.migrate && mix phx.server"
+
+volumes:
+  postgres_data:
+  mix_deps:
+  mix_build:
+  hex_cache:
+  rebar_cache:
