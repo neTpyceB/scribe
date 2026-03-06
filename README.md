@@ -13,13 +13,24 @@ Use the documentation hub below as the source of truth for active execution stan
 
 ## Documentation Hub
 
-- [Documentation Index](/Users/vadimsduboiss/Codebase/scribe/docs/index.md)
-- [Challenge Execution Plan](/Users/vadimsduboiss/Codebase/scribe/docs/challenge_execution_plan.md)
-- [Engineering Standards](/Users/vadimsduboiss/Codebase/scribe/docs/engineering_standards.md)
-- [Testing Policy](/Users/vadimsduboiss/Codebase/scribe/docs/testing_policy.md)
-- [Documentation Policy](/Users/vadimsduboiss/Codebase/scribe/docs/documentation_policy.md)
-- [Local Development Target (Docker)](/Users/vadimsduboiss/Codebase/scribe/docs/local_development_target.md)
-- [Integration Accounts Checklist](/Users/vadimsduboiss/Codebase/scribe/docs/integration_accounts_checklist.md)
+- [Documentation Index](docs/index.md)
+- [Challenge Execution Plan](docs/challenge_execution_plan.md)
+- [Engineering Standards](docs/engineering_standards.md)
+- [Testing Policy](docs/testing_policy.md)
+- [Documentation Policy](docs/documentation_policy.md)
+- [Local Development Target (Docker)](docs/local_development_target.md)
+- [Integration Accounts Checklist](docs/integration_accounts_checklist.md)
+
+---
+
+## Quick Start (Docker Recommended)
+
+1. `cp .env.example .env`
+2. `make up`
+3. Open [http://localhost:4100](http://localhost:4100)
+4. Run tests with `make test`
+
+Detailed setup: [Local Setup](docs/local_setup.md)
 
 ---
 

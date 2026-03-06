@@ -1,12 +1,13 @@
 # Documentation Index
 
 ## Start Here
-1. [Challenge Execution Plan](/Users/vadimsduboiss/Codebase/scribe/docs/challenge_execution_plan.md)
-2. [Engineering Standards](/Users/vadimsduboiss/Codebase/scribe/docs/engineering_standards.md)
-3. [Testing Policy](/Users/vadimsduboiss/Codebase/scribe/docs/testing_policy.md)
-4. [Documentation Policy](/Users/vadimsduboiss/Codebase/scribe/docs/documentation_policy.md)
-5. [Local Development Target (Docker)](/Users/vadimsduboiss/Codebase/scribe/docs/local_development_target.md)
-6. [Integration Accounts Checklist](/Users/vadimsduboiss/Codebase/scribe/docs/integration_accounts_checklist.md)
+1. [Challenge Execution Plan](docs/challenge_execution_plan.md)
+2. [Engineering Standards](docs/engineering_standards.md)
+3. [Testing Policy](docs/testing_policy.md)
+4. [Documentation Policy](docs/documentation_policy.md)
+5. [Local Development Target (Docker)](docs/local_development_target.md)
+6. [Integration Accounts Checklist](docs/integration_accounts_checklist.md)
+7. [Local Setup](docs/local_setup.md)
 
 ## Contributor Sequence
 1. Read `README.md`.

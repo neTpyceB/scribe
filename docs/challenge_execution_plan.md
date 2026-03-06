@@ -3,6 +3,30 @@
 ## Goal
 Deliver a complete, production-style submission for the Scribe challenge that is easy to run, easy to review, and clearly demonstrates senior-level engineering quality.
 
+## Progress Tracker
+
+### Completed
+1. Added repository AI/contributor operating rules in `AGENTS.md`.
+2. Added documentation hub and policy documents in `/docs`.
+3. Linked docs hub from `README.md`.
+4. Added repository hygiene ignores in `.gitignore` (`.idea`, `.DS_Store`, editor artifacts).
+5. Added Docker-first local runtime with separate `app` and `postgres` containers.
+6. Added `.env.example` with required environment variables.
+7. Added `Makefile` with local operations (`up`, `test`, `migrate`, `logs`, etc.).
+8. Added local setup documentation and README quick-start section.
+9. Verified app is reachable locally at `http://localhost:4100`.
+10. Verified test suite passes in Docker (`12 properties, 226 tests, 0 failures`).
+11. Fixed Docker dev image to include `inotify-tools` for clean LiveView dev startup.
+12. Normalized markdown links to repo-relative paths for portability across machines.
+
+### In Progress
+1. CI workflow setup (format, compile, test).
+
+### Next Up
+1. Add GitHub Actions workflow for format, compile, and tests.
+2. Improve Docker runtime polish (remove remaining warnings, optimize first boot).
+3. Start Salesforce implementation prep with CRM abstraction while preserving current behavior.
+
 ## Phase 1: Environment and Runbook First
 1. Add Docker-first local development setup with `docker-compose.yml`.
 2. Run app and database in separate containers (`app`, `postgres`).
@@ -105,3 +129,4 @@ Deliver a complete, production-style submission for the Scribe challenge that is
 3. Prioritize reliability and clarity over speed-only shortcuts.
 4. Preserve existing behavior unless fixing a verified bug.
 5. Continuously verify requirement coverage during implementation.
+6. Update this file with explicit progress checkpoints after every relevant implementation step.
