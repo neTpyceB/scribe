@@ -37,14 +37,25 @@ Deliver a complete, production-style submission for the Scribe challenge that is
 29. Hardened Railway migration startup for constrained DB plans: migrations now run with `MIGRATION_POOL_SIZE` (default `2`) and production DB queue settings are configurable via env.
 30. Fixed Recall polling reliability bug for past-meeting sync: `BotStatusPoller` now safely handles empty `status_changes` payloads, falls back to top-level status/current status, and no longer crashes before creating meetings.
 31. Added regression test for Recall payloads with empty `status_changes` to guarantee completed bots still create meeting records.
+32. Completed Salesforce modal Step 3: replaced placeholder inline state with a real modal shell, wired open/close behavior, and added passing LiveView tests for modal visibility and empty state.
+33. Completed Salesforce modal Step 4: added contact search/select flow (search form, results list, selected-contact preview) wired to Salesforce API behaviour with LiveView tests for success, empty results, and contact selection.
+34. Added Salesforce credential lifecycle control in Settings: users can now disconnect a connected Salesforce account and reconnect cleanly; covered by LiveView tests.
+35. Fixed Salesforce contact search query bug: `Id = ...` filter is now only included for valid Salesforce IDs, preventing `INVALID_QUERY_FILTER_OPERATOR` on normal text searches; added tests and verified against real org data.
+36. Completed Salesforce modal Step 5: added transcript-driven AI suggestions for selected Salesforce contacts (allowed-field filtering + current-vs-suggested merge) and rendered suggestions in modal with service/unit and LiveView test coverage.
+37. Added actionable Salesforce modal error handling for AI quota/config failures (e.g., Gemini 429/resource exhausted, missing key) with dedicated LiveView test.
+38. Fixed Gemini model compatibility by updating from deprecated `gemini-2.0-flash-lite` to `gemini-2.5-flash`; verified suggestion pipeline now executes without model-not-found errors.
+39. Improved Salesforce modal responsiveness UX by making search/select/suggestion operations asynchronous with visible in-modal processing indicators and disabled controls during in-flight requests.
+40. Updated Salesforce suggestions UI to match reference modal pattern (stacked suggestion cards with per-field checkbox, current→suggested value comparison, and bottom action bar styling).
+41. Added Salesforce contact-search safety guardrails: minimum 3-character query requirement, UI notice for broad/high-volume results, and hard cap of 10 rendered results to prevent oversized list rendering.
+42. Added DB-backed Gemini suggestion caching keyed by meeting transcript hash (`meeting_transcripts.salesforce_ai_transcript_hash` + cached suggestions payload) with automatic invalidation when transcript content changes.
 
 ### In Progress
 1. Salesforce meeting modal flow implementation.
-2. Step 3: Salesforce modal shell with open/close + empty state tests.
+2. Step 6: Render existing vs suggested Salesforce values with per-field toggles.
 
 ### Next Up
-1. Step 3: Add modal shell with open/close + empty state tests.
-2. Step 4: Add contact search/select in modal wired to Salesforce API.
+1. Step 6: Render existing vs suggested Salesforce values with per-field toggles.
+2. Step 7: Add "Update Salesforce" action and persistence.
 3. Step 5: Add transcript-to-suggestion service for Salesforce fields.
 4. Step 6: Render existing vs suggested values in modal.
 5. Step 7: Add "Update Salesforce" action and persistence.
@@ -55,6 +66,12 @@ Deliver a complete, production-style submission for the Scribe challenge that is
    - server-side rate limiting for auth/search/update actions
    - HTTP timeout/retry policy for external API clients
    - security-focused tests (abuse cases, redaction, boundary tests)
+8. Step 10 (final pre-submission review reminder): run security and architecture pass:
+   - DDoS/bruteforce protection verification
+   - noob-error UX safeguards and clear recovery messages
+   - auth/session/oauth abuse-path checks
+   - dependency/vulnerability scan
+   - architecture/failure-mode review (timeouts, retries, degraded external APIs)
 
 ## Salesforce Modal Atomic Plan
 

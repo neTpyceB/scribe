@@ -147,6 +147,7 @@ defmodule SocialScribe.SalesforceApi do
   defp search_soql(query) do
     escaped_query = escape_like(query)
     escaped_id = escape_id(query)
+    id_clause = if salesforce_id?(query), do: " OR Id = '#{escaped_id}'", else: ""
 
     """
     SELECT #{Enum.join(@contact_fields, ", ")}
@@ -154,7 +155,7 @@ defmodule SocialScribe.SalesforceApi do
     WHERE Name LIKE '%#{escaped_query}%'
       OR Email LIKE '%#{escaped_query}%'
       OR Phone LIKE '%#{escaped_query}%'
-      OR Id = '#{escaped_id}'
+      #{id_clause}
     ORDER BY LastModifiedDate DESC
     LIMIT 10
     """
@@ -228,4 +229,8 @@ defmodule SocialScribe.SalesforceApi do
 
   defp escape_like(value) when is_binary(value),
     do: escape_id(value) |> String.replace("%", "\\%")
+
+  defp salesforce_id?(value) when is_binary(value) do
+    String.match?(value, ~r/^[a-zA-Z0-9]{15}([a-zA-Z0-9]{3})?$/)
+  end
 end
