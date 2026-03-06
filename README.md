@@ -29,6 +29,7 @@ Use the documentation hub below as the source of truth for active execution stan
 2. `make up`
 3. Open [http://localhost:4100](http://localhost:4100)
 4. Run tests with `make test`
+5. CI runs on each push and pull request via [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
 
 Detailed setup: [Local Setup](docs/local_setup.md)
 
