@@ -27,20 +27,21 @@ Deliver a complete, production-style submission for the Scribe challenge that is
 19. Implemented Salesforce contacts API layer (`search/get/update/apply_updates`) via behaviour + concrete client.
 20. Added Salesforce API unit tests with mocked HTTP responses; full Docker suite green (`12 properties, 239 tests, 0 failures`).
 21. Hardened Railway production startup to enforce migration-before-server with retrying release script and Docker `ENTRYPOINT` wiring.
+22. Completed Salesforce modal Step 2: meeting details Salesforce CTA + LiveView open/close state/events with tests.
+23. Fixed Railway release startup compatibility by making `rel/env.sh.eex` platform-safe (Fly-only node naming; non-Fly defaults to `RELEASE_DISTRIBUTION=none`).
 
 ### In Progress
 1. Salesforce meeting modal flow implementation.
-2. Step 2: meeting details entry point for Salesforce review modal.
+2. Step 3: Salesforce modal shell with open/close + empty state tests.
 
 ### Next Up
-1. Step 2: Add meeting details LiveView state + "Review Salesforce updates" CTA (no modal logic yet).
-2. Step 3: Add modal shell with open/close + empty state tests.
-3. Step 4: Add contact search/select in modal wired to Salesforce API.
-4. Step 5: Add transcript-to-suggestion service for Salesforce fields.
-5. Step 6: Render existing vs suggested values in modal.
-6. Step 7: Add "Update Salesforce" action and persistence.
-7. Step 8: Add docs polish + requirement checklist + end-to-end QA notes.
-8. Step 9 (scheduled hardening): apply security/performance tightening across new code:
+1. Step 3: Add modal shell with open/close + empty state tests.
+2. Step 4: Add contact search/select in modal wired to Salesforce API.
+3. Step 5: Add transcript-to-suggestion service for Salesforce fields.
+4. Step 6: Render existing vs suggested values in modal.
+5. Step 7: Add "Update Salesforce" action and persistence.
+6. Step 8: Add docs polish + requirement checklist + end-to-end QA notes.
+7. Step 9 (scheduled hardening): apply security/performance tightening across new code:
    - strict field allowlists for external update payloads
    - request size/input length bounds
    - server-side rate limiting for auth/search/update actions

@@ -32,6 +32,9 @@ defmodule SocialScribeWeb.MeetingLive.Show do
     else
       hubspot_credential = Accounts.get_user_hubspot_credential(socket.assigns.current_user.id)
 
+      salesforce_credential =
+        Accounts.get_user_salesforce_credential(socket.assigns.current_user.id)
+
       socket =
         socket
         |> assign(:page_title, "Meeting Details: #{meeting.title}")
@@ -39,6 +42,8 @@ defmodule SocialScribeWeb.MeetingLive.Show do
         |> assign(:automation_results, automation_results)
         |> assign(:user_has_automations, user_has_automations)
         |> assign(:hubspot_credential, hubspot_credential)
+        |> assign(:salesforce_credential, salesforce_credential)
+        |> assign(:show_salesforce_modal, false)
         |> assign(
           :follow_up_email_form,
           to_form(%{
@@ -75,6 +80,16 @@ defmodule SocialScribeWeb.MeetingLive.Show do
       |> assign(:follow_up_email_form, to_form(params))
 
     {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("open_salesforce_review", _params, socket) do
+    {:noreply, assign(socket, :show_salesforce_modal, true)}
+  end
+
+  @impl true
+  def handle_event("close_salesforce_review", _params, socket) do
+    {:noreply, assign(socket, :show_salesforce_modal, false)}
   end
 
   @impl true
