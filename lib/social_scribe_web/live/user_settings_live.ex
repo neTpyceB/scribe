@@ -106,6 +106,29 @@ defmodule SocialScribeWeb.UserSettingsLive do
     end
   end
 
+  @impl true
+  def handle_event("disconnect_salesforce", %{"id" => id}, socket) do
+    case Enum.find(socket.assigns.salesforce_accounts, &("#{&1.id}" == id && &1.provider == "salesforce")) do
+      nil ->
+        {:noreply, put_flash(socket, :error, "Salesforce account not found.")}
+
+      credential ->
+        case Accounts.delete_user_credential(credential) do
+          {:ok, _deleted_credential} ->
+            salesforce_accounts =
+              Accounts.list_user_credentials(socket.assigns.current_user, provider: "salesforce")
+
+            {:noreply,
+             socket
+             |> assign(:salesforce_accounts, salesforce_accounts)
+             |> put_flash(:info, "Salesforce account disconnected successfully.")}
+
+          {:error, _changeset} ->
+            {:noreply, put_flash(socket, :error, "Failed to disconnect Salesforce account.")}
+        end
+    end
+  end
+
   defp create_or_update_user_bot_preference(bot_preference, params) do
     case bot_preference do
       %Bots.UserBotPreference{id: nil} ->

@@ -57,7 +57,7 @@ defmodule SocialScribeWeb.UserSettingsLiveTest do
     end
 
     test "displays connected Salesforce accounts", %{conn: conn, user: user} do
-      _credential =
+      credential =
         salesforce_credential_fixture(%{
           user_id: user.id,
           uid: "sf-org-user-123",
@@ -69,6 +69,27 @@ defmodule SocialScribeWeb.UserSettingsLiveTest do
       assert has_element?(view, "li", "UID: sf-org-user-123")
       assert has_element?(view, "li", "(sf-user@example.com)")
       assert has_element?(view, "a", "Connect another Salesforce Account")
+      assert has_element?(view, "#disconnect-salesforce-#{credential.id}")
+    end
+
+    test "disconnects connected Salesforce account", %{conn: conn, user: user} do
+      credential =
+        salesforce_credential_fixture(%{
+          user_id: user.id,
+          uid: "sf-org-user-789",
+          email: "sf-disconnect@example.com"
+        })
+
+      {:ok, view, _html} = live(conn, ~p"/dashboard/settings")
+
+      assert has_element?(view, "#disconnect-salesforce-#{credential.id}")
+
+      view
+      |> element("#disconnect-salesforce-#{credential.id}")
+      |> render_click()
+
+      refute has_element?(view, "#disconnect-salesforce-#{credential.id}")
+      assert has_element?(view, "p", "You haven't connected any Salesforce accounts yet.")
     end
   end
 end

@@ -7,6 +7,8 @@ defmodule SocialScribe.Meetings.MeetingTranscript do
   schema "meeting_transcripts" do
     field :content, :map
     field :language, :string
+    field :salesforce_ai_suggestions, :map
+    field :salesforce_ai_transcript_hash, :string
 
     belongs_to :meeting, Meeting
 
@@ -15,7 +17,13 @@ defmodule SocialScribe.Meetings.MeetingTranscript do
 
   def changeset(transcript, attrs) do
     transcript
-    |> cast(attrs, [:content, :language, :meeting_id])
+    |> cast(attrs, [
+      :content,
+      :language,
+      :meeting_id,
+      :salesforce_ai_suggestions,
+      :salesforce_ai_transcript_hash
+    ])
     |> validate_required([:content, :meeting_id])
   end
 end

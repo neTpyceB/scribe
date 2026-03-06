@@ -158,6 +158,15 @@
               <% end %>
             </p>
           </div>
+          <button
+            id={"disconnect-salesforce-#{account.id}"}
+            type="button"
+            phx-click="disconnect_salesforce"
+            phx-value-id={account.id}
+            class="inline-flex items-center px-3 py-1.5 border border-red-300 text-xs font-medium rounded-md text-red-700 hover:bg-red-50"
+          >
+            Disconnect
+          </button>
         </li>
       </ul>
     <% else %>

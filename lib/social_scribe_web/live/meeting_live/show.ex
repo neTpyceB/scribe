@@ -3,13 +3,15 @@ defmodule SocialScribeWeb.MeetingLive.Show do
 
   import SocialScribeWeb.PlatformLogo
   import SocialScribeWeb.ClipboardButton
-  import SocialScribeWeb.ModalComponents, only: [hubspot_modal: 1]
+  import SocialScribeWeb.ModalComponents, only: [hubspot_modal: 1, suggestion_card: 1, modal_footer: 1, empty_state: 1]
 
   alias SocialScribe.Meetings
   alias SocialScribe.Automations
   alias SocialScribe.Accounts
   alias SocialScribe.HubspotApiBehaviour, as: HubspotApi
+  alias SocialScribe.SalesforceApiBehaviour, as: SalesforceApi
   alias SocialScribe.HubspotSuggestions
+  alias SocialScribe.SalesforceSuggestions
 
   @impl true
   def mount(%{"id" => meeting_id}, _session, socket) do
@@ -44,6 +46,18 @@ defmodule SocialScribeWeb.MeetingLive.Show do
         |> assign(:hubspot_credential, hubspot_credential)
         |> assign(:salesforce_credential, salesforce_credential)
         |> assign(:show_salesforce_modal, false)
+        |> assign(:salesforce_search_form, to_form(%{"query" => ""}, as: :salesforce_search))
+        |> assign(:salesforce_contacts, [])
+        |> assign(:salesforce_selected_contact, nil)
+        |> assign(:salesforce_search_error, nil)
+        |> assign(:salesforce_search_notice, nil)
+        |> assign(:salesforce_search_attempted, false)
+        |> assign(:salesforce_searching, false)
+        |> assign(:salesforce_selecting_contact, false)
+        |> assign(:salesforce_selecting_contact_id, nil)
+        |> assign(:salesforce_suggestions, [])
+        |> assign(:salesforce_selected_count, 0)
+        |> assign(:salesforce_suggestions_loading, false)
         |> assign(
           :follow_up_email_form,
           to_form(%{
@@ -93,6 +107,104 @@ defmodule SocialScribeWeb.MeetingLive.Show do
   end
 
   @impl true
+  def handle_event("salesforce_contact_search", %{"salesforce_search" => %{"query" => query}}, socket) do
+    query = String.trim(query || "")
+    credential = socket.assigns.salesforce_credential
+
+    socket =
+      socket
+      |> assign(:salesforce_search_form, to_form(%{"query" => query}, as: :salesforce_search))
+      |> assign(:salesforce_search_attempted, true)
+      |> assign(:salesforce_search_error, nil)
+      |> assign(:salesforce_search_notice, nil)
+      |> assign(:salesforce_searching, true)
+      |> assign(:salesforce_selected_contact, nil)
+
+    cond do
+      is_nil(credential) ->
+        {:noreply,
+         socket
+         |> assign(:salesforce_contacts, [])
+         |> assign(:salesforce_searching, false)
+         |> assign(:salesforce_search_error, "Salesforce account is not connected.")}
+
+      String.length(query) < 3 ->
+        {:noreply,
+         socket
+         |> assign(:salesforce_contacts, [])
+         |> assign(:salesforce_searching, false)
+         |> assign(:salesforce_search_error, "Enter at least 3 characters to search.")}
+
+      true ->
+        send(self(), {:salesforce_search_contacts, credential, query})
+        {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("select_salesforce_contact", %{"id" => contact_id}, socket) do
+    credential = socket.assigns.salesforce_credential
+
+    if is_nil(credential) do
+      {:noreply, assign(socket, :salesforce_search_error, "Salesforce account is not connected.")}
+    else
+      send(self(), {:salesforce_select_contact, credential, contact_id, socket.assigns.meeting})
+
+      {:noreply,
+       socket
+       |> assign(:salesforce_search_error, nil)
+       |> assign(:salesforce_selected_contact, nil)
+       |> assign(:salesforce_suggestions, [])
+       |> assign(:salesforce_selected_count, 0)
+       |> assign(:salesforce_selecting_contact, true)
+       |> assign(:salesforce_selecting_contact_id, contact_id)
+       |> assign(:salesforce_suggestions_loading, true)}
+    end
+  end
+
+  @impl true
+  def handle_event("clear_salesforce_contact", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:salesforce_selected_contact, nil)
+     |> assign(:salesforce_suggestions, [])
+     |> assign(:salesforce_selected_count, 0)
+     |> assign(:salesforce_selecting_contact, false)
+     |> assign(:salesforce_selecting_contact_id, nil)
+     |> assign(:salesforce_suggestions_loading, false)}
+  end
+
+  @impl true
+  def handle_event("toggle_salesforce_suggestion", params, socket) do
+    applied_fields = Map.get(params, "apply", %{})
+    values = Map.get(params, "values", %{})
+    checked_fields = Map.keys(applied_fields)
+
+    suggestions =
+      Enum.map(socket.assigns.salesforce_suggestions, fn suggestion ->
+        apply? = suggestion.field in checked_fields
+
+        suggestion =
+          case Map.get(values, suggestion.field) do
+            nil -> suggestion
+            value -> %{suggestion | new_value: value}
+          end
+
+        %{suggestion | apply: apply?}
+      end)
+
+    {:noreply,
+     socket
+     |> assign(:salesforce_suggestions, suggestions)
+     |> assign(:salesforce_selected_count, Enum.count(suggestions, & &1.apply))}
+  end
+
+  @impl true
+  def handle_event("apply_salesforce_updates", _params, socket) do
+    {:noreply, put_flash(socket, :info, "Salesforce update action is the next implementation step.")}
+  end
+
+  @impl true
   def handle_info({:hubspot_search, query, credential}, socket) do
     case HubspotApi.search_contacts(credential, query) do
       {:ok, contacts} ->
@@ -111,6 +223,73 @@ defmodule SocialScribeWeb.MeetingLive.Show do
     end
 
     {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:salesforce_search_contacts, credential, query}, socket) do
+    case SalesforceApi.search_contacts(credential, query) do
+      {:ok, contacts} ->
+        shown_contacts = Enum.take(contacts, 10)
+
+        notice =
+          cond do
+            length(contacts) > 10 ->
+              "Returned too many contacts. Showing first 10; please narrow your search."
+
+            length(contacts) == 10 ->
+              "Many contacts returned. If needed, narrow your search further."
+
+            true ->
+              nil
+          end
+
+        {:noreply,
+         socket
+         |> assign(:salesforce_contacts, shown_contacts)
+         |> assign(:salesforce_search_notice, notice)
+         |> assign(:salesforce_searching, false)}
+
+      {:error, reason} ->
+        {:noreply,
+         socket
+         |> assign(:salesforce_contacts, [])
+         |> assign(:salesforce_search_notice, nil)
+         |> assign(:salesforce_searching, false)
+         |> assign(:salesforce_search_error, format_salesforce_error(reason))}
+    end
+  end
+
+  @impl true
+  def handle_info({:salesforce_select_contact, credential, contact_id, meeting}, socket) do
+    case SalesforceApi.get_contact(credential, contact_id) do
+      {:ok, contact} ->
+        {suggestions, search_error} =
+          case SalesforceSuggestions.generate_suggestions(meeting, contact) do
+            {:ok, suggestions} ->
+              {suggestions, nil}
+
+            {:error, reason} ->
+              {[], format_salesforce_suggestions_error(reason)}
+          end
+
+        {:noreply,
+         socket
+         |> assign(:salesforce_selected_contact, contact)
+          |> assign(:salesforce_suggestions, suggestions)
+         |> assign(:salesforce_selected_count, Enum.count(suggestions, & &1.apply))
+         |> assign(:salesforce_suggestions_loading, false)
+         |> assign(:salesforce_selecting_contact, false)
+         |> assign(:salesforce_selecting_contact_id, nil)
+         |> assign(:salesforce_search_error, search_error)}
+
+      {:error, reason} ->
+        {:noreply,
+         socket
+         |> assign(:salesforce_suggestions_loading, false)
+         |> assign(:salesforce_selecting_contact, false)
+         |> assign(:salesforce_selecting_contact_id, nil)
+         |> assign(:salesforce_search_error, format_salesforce_error(reason))}
+    end
   end
 
   @impl true
@@ -163,6 +342,53 @@ defmodule SocialScribeWeb.MeetingLive.Show do
     # Contact is already formatted with atom keys from HubspotApi.format_contact
     contact
   end
+
+  defp format_salesforce_error({:api_error, 401, body}) do
+    if salesforce_invalid_session?(body) do
+      "Salesforce session expired. Reconnect Salesforce in Settings and try again."
+    else
+      "Salesforce authentication failed. Reconnect Salesforce in Settings and try again."
+    end
+  end
+
+  defp format_salesforce_error({:api_error, _status, _body}),
+    do: "Failed to search Salesforce contacts."
+
+  defp format_salesforce_error({:http_error, :econnrefused}),
+    do: "Cannot reach Salesforce API. Check SALESFORCE_SITE and try again."
+
+  defp format_salesforce_error({:http_error, _reason}),
+    do: "Network error while contacting Salesforce. Please try again."
+
+  defp format_salesforce_error(_reason),
+    do: "Failed to search Salesforce contacts."
+
+  defp format_salesforce_suggestions_error({:api_error, 429, _body}),
+    do: "Gemini quota exceeded. Enable billing or wait for quota reset, then try again."
+
+  defp format_salesforce_suggestions_error({:api_error, 404, _body}),
+    do: "Configured Gemini model is unavailable. Update app model configuration and retry."
+
+  defp format_salesforce_suggestions_error({:config_error, _message}),
+    do: "Gemini API key is missing. Set GEMINI_API_KEY and restart the app."
+
+  defp format_salesforce_suggestions_error(_reason),
+    do: "Failed to generate Salesforce suggestions from transcript."
+
+  defp salesforce_invalid_session?(body) when is_list(body) do
+    Enum.any?(body, fn
+      %{"errorCode" => "INVALID_SESSION_ID"} -> true
+      %{errorCode: "INVALID_SESSION_ID"} -> true
+      _ -> false
+    end)
+  end
+
+  defp salesforce_invalid_session?(body) when is_map(body) do
+    Map.get(body, "errorCode") == "INVALID_SESSION_ID" ||
+      Map.get(body, :errorCode) == "INVALID_SESSION_ID"
+  end
+
+  defp salesforce_invalid_session?(_), do: false
 
   defp format_duration(nil), do: "N/A"
 

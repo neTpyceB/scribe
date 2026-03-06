@@ -38,6 +38,8 @@ defmodule SocialScribe.SalesforceApiTest do
         %{method: :get, url: url} ->
           assert String.contains?(url, "/services/data/v61.0/query")
           assert String.contains?(url, "SELECT")
+          decoded = URI.decode_www_form(String.split(url, "q=") |> List.last())
+          refute String.contains?(decoded, "OR Id = 'Ada'")
 
           %Tesla.Env{
             status: 200,
@@ -60,6 +62,25 @@ defmodule SocialScribe.SalesforceApiTest do
       assert contact.id == "003ABC"
       assert contact.display_name == "Ada Lovelace"
       assert contact.company == "Analytical Engines"
+    end
+
+    test "includes Id filter only for valid Salesforce ID search strings" do
+      credential = salesforce_credential_fixture()
+
+      Tesla.Mock.mock(fn
+        %{method: :get, url: url} ->
+          decoded = URI.decode_www_form(String.split(url, "q=") |> List.last())
+          assert String.contains?(decoded, "OR Id = '003ABCDEF123456'")
+
+          %Tesla.Env{
+            status: 200,
+            body: %{
+              "records" => []
+            }
+          }
+      end)
+
+      assert {:ok, []} = SalesforceApi.search_contacts(credential, "003ABCDEF123456")
     end
   end
 

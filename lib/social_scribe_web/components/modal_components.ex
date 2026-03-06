@@ -333,6 +333,16 @@ defmodule SocialScribeWeb.ModalComponents do
   attr :class, :string, default: nil
 
   def suggestion_card(assigns) do
+    details_id = "suggestion-details-#{assigns.suggestion.field}"
+    hide_label_id = "suggestion-hide-label-#{assigns.suggestion.field}"
+    show_label_id = "suggestion-show-label-#{assigns.suggestion.field}"
+
+    assigns =
+      assigns
+      |> assign(:details_id, details_id)
+      |> assign(:hide_label_id, hide_label_id)
+      |> assign(:show_label_id, show_label_id)
+
     ~H"""
     <div class={["bg-hubspot-card rounded-2xl p-6 mb-4", @class]}>
       <div class="flex items-start justify-between">
@@ -358,13 +368,22 @@ defmodule SocialScribeWeb.ModalComponents do
           >
             1 update selected
           </span>
-          <button type="button" class="text-xs text-hubspot-hide hover:text-hubspot-hide-hover font-medium">
-            Hide details
+          <button
+            type="button"
+            phx-click={
+              JS.toggle(to: "##{@details_id}")
+              |> JS.toggle(to: "##{@hide_label_id}")
+              |> JS.toggle(to: "##{@show_label_id}")
+            }
+            class="text-xs text-hubspot-hide hover:text-hubspot-hide-hover font-medium"
+          >
+            <span id={@hide_label_id}>Hide details</span>
+            <span id={@show_label_id} class="hidden">Show details</span>
           </button>
         </div>
       </div>
 
-      <div class="mt-2 pl-8">
+      <div id={@details_id} class="mt-2 pl-8">
         <div class="text-sm font-medium text-slate-700 leading-5 ml-1">{@suggestion.label}</div>
 
         <div class="relative mt-2">
