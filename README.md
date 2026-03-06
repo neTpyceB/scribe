@@ -6,6 +6,23 @@ Social Scribe is a powerful Elixir and Phoenix LiveView application designed to 
 
 ---
 
+## Project Status
+
+This repository is currently being upgraded for the Salesforce challenge requirements and Docker-first local development workflow.  
+Use the documentation hub below as the source of truth for active execution standards and plans.
+
+## Documentation Hub
+
+- [Documentation Index](/Users/vadimsduboiss/Codebase/scribe/docs/index.md)
+- [Challenge Execution Plan](/Users/vadimsduboiss/Codebase/scribe/docs/challenge_execution_plan.md)
+- [Engineering Standards](/Users/vadimsduboiss/Codebase/scribe/docs/engineering_standards.md)
+- [Testing Policy](/Users/vadimsduboiss/Codebase/scribe/docs/testing_policy.md)
+- [Documentation Policy](/Users/vadimsduboiss/Codebase/scribe/docs/documentation_policy.md)
+- [Local Development Target (Docker)](/Users/vadimsduboiss/Codebase/scribe/docs/local_development_target.md)
+- [Integration Accounts Checklist](/Users/vadimsduboiss/Codebase/scribe/docs/integration_accounts_checklist.md)
+
+---
+
 ## 🌟 Key Features Implemented
 
 * **Google Calendar Integration:**
