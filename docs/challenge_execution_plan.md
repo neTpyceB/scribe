@@ -19,15 +19,19 @@ Deliver a complete, production-style submission for the Scribe challenge that is
 11. Fixed Docker dev image to include `inotify-tools` for clean LiveView dev startup.
 12. Normalized markdown links to repo-relative paths for portability across machines.
 13. Added GitHub Actions CI workflow with concurrency cancellation and PostgreSQL-backed test run.
+14. Implemented Salesforce OAuth connection in Settings (provider config, strategy, callback persistence, UI, tests).
+15. Verified full Docker test suite after Salesforce OAuth step (`12 properties, 232 tests, 0 failures`).
+16. Verified local Salesforce OAuth redirect wiring with real client credentials (`/auth/salesforce` includes correct client_id and callback).
+17. Added PKCE support for Salesforce OAuth authorization code flow (`code_challenge`/`code_verifier`) to match Salesforce requirements.
+18. Added dedicated tests for Salesforce auth callback persistence and PKCE request behavior; full suite green (`12 properties, 235 tests, 0 failures`).
 
 ### In Progress
-1. Salesforce implementation preparation.
+1. Salesforce meeting modal flow implementation.
 
 ### Next Up
-1. Add minimal CRM abstraction to preserve HubSpot behavior and enable Salesforce cleanly.
-2. Implement Salesforce OAuth connection in settings.
-3. Implement Salesforce meeting modal flow (search, suggestions, update).
-4. Add Salesforce tests and update docs.
+1. Implement Salesforce meeting modal flow (search, fetch contact, suggestions, update).
+2. Add Salesforce API client and suggestion mapping tests.
+3. Update docs for Salesforce end-to-end usage and required external app setup.
 
 ## Phase 1: Environment and Runbook First
 1. Add Docker-first local development setup with `docker-compose.yml`.
