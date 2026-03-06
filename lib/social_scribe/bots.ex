@@ -28,7 +28,7 @@ defmodule SocialScribe.Bots do
   These are the bots that the poller should check.
   """
   def list_pending_bots do
-    from(b in RecallBot, where: b.status not in ["done", "error", "polling_error"])
+    from(b in RecallBot, where: b.status not in ["done", "error", "polling_error", "fatal"])
     |> Repo.all()
   end
 

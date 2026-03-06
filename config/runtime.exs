@@ -63,32 +63,35 @@ if config_env() == :prod do
   # Parse DATABASE_URL for Cloud SQL Unix socket connections
   # Format: ecto://user:pass@localhost/db?socket=/cloudsql/project:region:instance
   uri = URI.parse(database_url)
-  socket_dir = if uri.query do
-    uri.query
-    |> URI.decode_query()
-    |> Map.get("socket")
-  end
 
-  repo_config = if socket_dir do
-    # For Cloud SQL socket connections, configure manually (don't use URL with host)
-    [userinfo_user, userinfo_pass] = String.split(uri.userinfo || ":", ":")
-    database = String.trim_leading(uri.path || "", "/")
+  socket_dir =
+    if uri.query do
+      uri.query
+      |> URI.decode_query()
+      |> Map.get("socket")
+    end
 
-    [
-      username: userinfo_user,
-      password: userinfo_pass,
-      database: database,
-      socket_dir: socket_dir,
-      pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10")
-    ]
-  else
-    # Standard TCP connection
-    [
-      url: database_url,
-      pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
-      socket_options: maybe_ipv6
-    ]
-  end
+  repo_config =
+    if socket_dir do
+      # For Cloud SQL socket connections, configure manually (don't use URL with host)
+      [userinfo_user, userinfo_pass] = String.split(uri.userinfo || ":", ":")
+      database = String.trim_leading(uri.path || "", "/")
+
+      [
+        username: userinfo_user,
+        password: userinfo_pass,
+        database: database,
+        socket_dir: socket_dir,
+        pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10")
+      ]
+    else
+      # Standard TCP connection
+      [
+        url: database_url,
+        pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
+        socket_options: maybe_ipv6
+      ]
+    end
 
   config :social_scribe, SocialScribe.Repo, repo_config
 
@@ -106,15 +109,15 @@ if config_env() == :prod do
 
   host = System.get_env("PHX_HOST") || "example.com"
   port = String.to_integer(System.get_env("PORT") || "4000")
+  ipv6_enabled = System.get_env("PHX_IPV6") in ~w(true 1)
+  http_ip = if ipv6_enabled, do: {0, 0, 0, 0, 0, 0, 0, 0}, else: {0, 0, 0, 0}
 
   config :social_scribe, SocialScribeWeb.Endpoint,
     url: [host: host, port: 443, scheme: "https"],
     http: [
-      # Enable IPv6 and bind on all interfaces.
-      # Set it to  {0, 0, 0, 0, 0, 0, 0, 1} for local network only access.
-      # See the documentation on https://hexdocs.pm/bandit/Bandit.html#t:options/0
-      # for details about using IPv6 vs IPv4 and loopback vs public addresses.
-      ip: {0, 0, 0, 0, 0, 0, 0, 0},
+      # Default to IPv4 for broad platform compatibility (Railway, etc.).
+      # Set PHX_IPV6=true to bind IPv6.
+      ip: http_ip,
       port: port
     ],
     secret_key_base: secret_key_base
