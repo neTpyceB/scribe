@@ -18,14 +18,16 @@ Deliver a complete, production-style submission for the Scribe challenge that is
 10. Verified test suite passes in Docker (`12 properties, 226 tests, 0 failures`).
 11. Fixed Docker dev image to include `inotify-tools` for clean LiveView dev startup.
 12. Normalized markdown links to repo-relative paths for portability across machines.
+13. Added GitHub Actions CI workflow with concurrency cancellation and PostgreSQL-backed test run.
 
 ### In Progress
-1. CI workflow setup (format, compile, test).
+1. Salesforce implementation preparation.
 
 ### Next Up
-1. Add GitHub Actions workflow for format, compile, and tests.
-2. Improve Docker runtime polish (remove remaining warnings, optimize first boot).
-3. Start Salesforce implementation prep with CRM abstraction while preserving current behavior.
+1. Add minimal CRM abstraction to preserve HubSpot behavior and enable Salesforce cleanly.
+2. Implement Salesforce OAuth connection in settings.
+3. Implement Salesforce meeting modal flow (search, suggestions, update).
+4. Add Salesforce tests and update docs.
 
 ## Phase 1: Environment and Runbook First
 1. Add Docker-first local development setup with `docker-compose.yml`.
