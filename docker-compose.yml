@@ -63,7 +63,7 @@ services:
       - hex_cache:/root/.hex
       - rebar_cache:/root/.cache/rebar3
     command: >
-      sh -c "mix deps.get && mix ecto.create && mix ecto.migrate && mix phx.server"
+      sh -c "mix deps.get && mix compile --force && mix ecto.create && mix ecto.migrate && mix phx.server"
 
 volumes:
   postgres_data:
