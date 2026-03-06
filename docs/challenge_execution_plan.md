@@ -21,6 +21,8 @@ Deliver a complete, production-style submission for the Scribe challenge that is
 13. Added GitHub Actions CI workflow with concurrency cancellation and PostgreSQL-backed test run.
 14. Implemented Salesforce OAuth connection in Settings (provider config, strategy, callback persistence, UI, tests).
 15. Verified full Docker test suite after Salesforce OAuth step (`12 properties, 232 tests, 0 failures`).
+16. Verified local Salesforce OAuth redirect wiring with real client credentials (`/auth/salesforce` includes correct client_id and callback).
+17. Added PKCE support for Salesforce OAuth authorization code flow (`code_challenge`/`code_verifier`) to match Salesforce requirements.
 
 ### In Progress
 1. Salesforce meeting modal flow implementation.

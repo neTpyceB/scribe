@@ -3,6 +3,8 @@ defmodule Ueberauth.Strategy.Salesforce do
   Salesforce OAuth strategy for Ueberauth.
   """
 
+  import Plug.Conn
+
   use Ueberauth.Strategy,
     uid_field: :id,
     default_scope: "api refresh_token",
@@ -12,24 +14,46 @@ defmodule Ueberauth.Strategy.Salesforce do
   alias Ueberauth.Auth.Extra
   alias Ueberauth.Auth.Info
 
+  @pkce_verifier_bytes 64
+
   def handle_request!(conn) do
     scopes = conn.params["scope"] || option(conn, :default_scope)
+    code_verifier = generate_code_verifier()
+    code_challenge = code_challenge(code_verifier)
 
     opts =
-      [scope: scopes, redirect_uri: callback_url(conn)]
+      [
+        scope: scopes,
+        redirect_uri: callback_url(conn),
+        code_challenge: code_challenge,
+        code_challenge_method: "S256"
+      ]
       |> with_optional(:prompt, conn)
       |> with_param(:prompt, conn)
       |> with_state_param(conn)
 
-    redirect!(conn, Ueberauth.Strategy.Salesforce.OAuth.authorize_url!(opts))
+    conn
+    |> put_session(:salesforce_pkce_verifier, code_verifier)
+    |> redirect!(Ueberauth.Strategy.Salesforce.OAuth.authorize_url!(opts))
   end
 
   def handle_callback!(%Plug.Conn{params: %{"code" => code}} = conn) do
+    code_verifier = get_session(conn, :salesforce_pkce_verifier)
     opts = [redirect_uri: callback_url(conn)]
+    token_params = [code: code]
 
-    case Ueberauth.Strategy.Salesforce.OAuth.get_access_token([code: code], opts) do
+    token_params =
+      if is_binary(code_verifier) and code_verifier != "" do
+        Keyword.put(token_params, :code_verifier, code_verifier)
+      else
+        token_params
+      end
+
+    case Ueberauth.Strategy.Salesforce.OAuth.get_access_token(token_params, opts) do
       {:ok, token} ->
-        fetch_user(conn, token)
+        conn
+        |> delete_session(:salesforce_pkce_verifier)
+        |> fetch_user(token)
 
       {:error, {error_code, error_description}} ->
         set_errors!(conn, [error(error_code, error_description)])
@@ -105,5 +129,17 @@ defmodule Ueberauth.Strategy.Salesforce do
 
   defp option(conn, key) do
     Keyword.get(options(conn), key, Keyword.get(default_options(), key))
+  end
+
+  defp generate_code_verifier do
+    @pkce_verifier_bytes
+    |> :crypto.strong_rand_bytes()
+    |> Base.url_encode64(padding: false)
+  end
+
+  defp code_challenge(code_verifier) do
+    code_verifier
+    |> then(&:crypto.hash(:sha256, &1))
+    |> Base.url_encode64(padding: false)
   end
 end
