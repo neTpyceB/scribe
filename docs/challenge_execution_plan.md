@@ -24,14 +24,56 @@ Deliver a complete, production-style submission for the Scribe challenge that is
 16. Verified local Salesforce OAuth redirect wiring with real client credentials (`/auth/salesforce` includes correct client_id and callback).
 17. Added PKCE support for Salesforce OAuth authorization code flow (`code_challenge`/`code_verifier`) to match Salesforce requirements.
 18. Added dedicated tests for Salesforce auth callback persistence and PKCE request behavior; full suite green (`12 properties, 235 tests, 0 failures`).
+19. Implemented Salesforce contacts API layer (`search/get/update/apply_updates`) via behaviour + concrete client.
+20. Added Salesforce API unit tests with mocked HTTP responses; full Docker suite green (`12 properties, 239 tests, 0 failures`).
+21. Hardened Railway production startup to enforce migration-before-server with retrying release script and Docker `ENTRYPOINT` wiring.
 
 ### In Progress
 1. Salesforce meeting modal flow implementation.
+2. Step 2: meeting details entry point for Salesforce review modal.
 
 ### Next Up
-1. Implement Salesforce meeting modal flow (search, fetch contact, suggestions, update).
-2. Add Salesforce API client and suggestion mapping tests.
-3. Update docs for Salesforce end-to-end usage and required external app setup.
+1. Step 2: Add meeting details LiveView state + "Review Salesforce updates" CTA (no modal logic yet).
+2. Step 3: Add modal shell with open/close + empty state tests.
+3. Step 4: Add contact search/select in modal wired to Salesforce API.
+4. Step 5: Add transcript-to-suggestion service for Salesforce fields.
+5. Step 6: Render existing vs suggested values in modal.
+6. Step 7: Add "Update Salesforce" action and persistence.
+7. Step 8: Add docs polish + requirement checklist + end-to-end QA notes.
+8. Step 9 (scheduled hardening): apply security/performance tightening across new code:
+   - strict field allowlists for external update payloads
+   - request size/input length bounds
+   - server-side rate limiting for auth/search/update actions
+   - HTTP timeout/retry policy for external API clients
+   - security-focused tests (abuse cases, redaction, boundary tests)
+
+## Salesforce Modal Atomic Plan
+
+1. Step 1: Salesforce API layer
+   - Add dedicated module for contact search/fetch/update in Salesforce.
+   - Keep interface small and mockable.
+   - Add unit tests with mocked HTTP responses.
+2. Step 2: Meeting page entry point
+   - Add button in meeting details to open Salesforce review flow.
+   - Add LiveView assigns/events only; no heavy logic.
+3. Step 3: Modal scaffold
+   - Add modal container with open/close behavior.
+   - Add tests for visibility toggling.
+4. Step 4: Contact search/select
+   - Add search input and result list.
+   - Persist selected contact id and load full record.
+5. Step 5: AI suggestions service
+   - Add service that takes transcript + contact record and returns suggested field updates.
+   - Add deterministic tests for parser/mapping behavior.
+6. Step 6: Suggestions UI
+   - Render table/list: field, current Salesforce value, suggested value.
+   - Add per-field selection toggles for update control.
+7. Step 7: Update action
+   - Submit selected updates to Salesforce API.
+   - Show success/error feedback and refresh local modal state.
+8. Step 8: Finalize docs and verification
+   - Update README + docs with Salesforce setup and usage.
+   - Add requirement traceability checklist and smoke-test script.
 
 ## Phase 1: Environment and Runbook First
 1. Add Docker-first local development setup with `docker-compose.yml`.

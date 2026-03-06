@@ -35,6 +35,19 @@ Detailed setup: [Local Setup](docs/local_setup.md)
 
 ---
 
+## Railway Deploy (Required Runtime Settings)
+
+1. `Build Command`: leave empty (Railway should build from `Dockerfile`).
+2. `Start Command`: leave empty (image `ENTRYPOINT` handles migrate + server).
+3. Required env vars: at minimum set `DATABASE_URL`, `SECRET_KEY_BASE`, `PHX_HOST`, `PORT`, OAuth/API keys.
+4. On boot, container runs:
+   - `/app/bin/migrate` (with retry loop)
+   - `/app/bin/server`
+
+If Railway Start Command is set to `/app/bin/server`, migrations are skipped and Oban tables will be missing.
+
+---
+
 ## 🌟 Key Features Implemented
 
 * **Google Calendar Integration:**
