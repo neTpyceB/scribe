@@ -23,6 +23,7 @@ Deliver a complete, production-style submission for the Scribe challenge that is
 15. Verified full Docker test suite after Salesforce OAuth step (`12 properties, 232 tests, 0 failures`).
 16. Verified local Salesforce OAuth redirect wiring with real client credentials (`/auth/salesforce` includes correct client_id and callback).
 17. Added PKCE support for Salesforce OAuth authorization code flow (`code_challenge`/`code_verifier`) to match Salesforce requirements.
+18. Added dedicated tests for Salesforce auth callback persistence and PKCE request behavior; full suite green (`12 properties, 235 tests, 0 failures`).
 
 ### In Progress
 1. Salesforce meeting modal flow implementation.
