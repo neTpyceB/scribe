@@ -132,3 +132,4 @@ Deliver a complete, production-style submission for the Scribe challenge that is
 4. Preserve existing behavior unless fixing a verified bug.
 5. Continuously verify requirement coverage during implementation.
 6. Update this file with explicit progress checkpoints after every relevant implementation step.
+7. Execute tasks atomically with strict minimum scope first (e.g., CI test-only before adding extra checks).
