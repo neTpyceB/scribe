@@ -82,13 +82,17 @@ if config_env() == :prod do
         password: userinfo_pass,
         database: database,
         socket_dir: socket_dir,
-        pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10")
+        pool_size: String.to_integer(System.get_env("POOL_SIZE") || "5"),
+        queue_target: String.to_integer(System.get_env("DB_QUEUE_TARGET_MS") || "5000"),
+        queue_interval: String.to_integer(System.get_env("DB_QUEUE_INTERVAL_MS") || "1000")
       ]
     else
       # Standard TCP connection
       [
         url: database_url,
-        pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
+        pool_size: String.to_integer(System.get_env("POOL_SIZE") || "5"),
+        queue_target: String.to_integer(System.get_env("DB_QUEUE_TARGET_MS") || "5000"),
+        queue_interval: String.to_integer(System.get_env("DB_QUEUE_INTERVAL_MS") || "1000"),
         socket_options: maybe_ipv6
       ]
     end

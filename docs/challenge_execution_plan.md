@@ -34,6 +34,7 @@ Deliver a complete, production-style submission for the Scribe challenge that is
 26. Fixed calendar sync stability regression by handling oversized Google event fields safely (truncate/hash) and preventing sync task crashes on persistence errors.
 27. Added overflow guards for other external ingest paths (`meetings.title`, `meeting_participants.name/recall_participant_id`, `recall_bots` string fields) plus regression tests.
 28. Updated pending-bot filtering to treat `fatal` as terminal so poller does not keep retrying unrecoverable bots.
+29. Hardened Railway migration startup for constrained DB plans: migrations now run with `MIGRATION_POOL_SIZE` (default `2`) and production DB queue settings are configurable via env.
 
 ### In Progress
 1. Salesforce meeting modal flow implementation.

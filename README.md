@@ -40,6 +40,11 @@ Detailed setup: [Local Setup](docs/local_setup.md)
 1. `Build Command`: leave empty (Railway should build from `Dockerfile`).
 2. `Start Command`: leave empty (image `ENTRYPOINT` handles migrate + server).
 3. Required env vars: at minimum set `DATABASE_URL`, `SECRET_KEY_BASE`, `PHX_HOST`, `PORT`, OAuth/API keys.
+   - Recommended for small Railway Postgres plans:
+     - `POOL_SIZE=5`
+     - `MIGRATION_POOL_SIZE=2`
+     - `DB_QUEUE_TARGET_MS=5000`
+     - `DB_QUEUE_INTERVAL_MS=1000`
 4. On boot, container runs:
    - `/app/bin/migrate` (with retry loop)
    - `/app/bin/server`
