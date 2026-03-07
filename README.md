@@ -16,6 +16,7 @@ Latest implemented items:
 3. Hardening is implemented: centralized limits, server-side rate limiting, strict input bounds/allowlists, and HTTP timeout/retry defaults for external clients.
 4. Settings now visibly show the selected Facebook page (name + page ID).
 5. New Ops Health page (`/dashboard/health`) provides system/integration/background-job visibility and latest meeting pipeline health.
+6. Ops Health now includes replay triggers for bot polling, AI regeneration on latest meeting, and Salesforce suggestion cache reset.
 
 ## Documentation Hub
 

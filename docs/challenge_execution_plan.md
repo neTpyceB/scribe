@@ -69,6 +69,7 @@ Deliver a complete, production-style submission for the Scribe challenge that is
 61. Added end-to-end QA runbook + requirement traceability notes (`docs/end_to_end_qa_notes.md`) and linked it from docs index/submission readiness for evaluator-facing verification.
 62. Completed security/architecture pass: fixed password-login auth gap, added password-login rate limiting, enabled prod force-SSL/HSTS, executed dependency audit (`mix hex.audit`), and documented review outcomes in `docs/security_architecture_review.md`.
 63. Added evaluator/operator-facing Ops Health page (`/dashboard/health`) with DB/runtime status, connected integration status (plus token-expiry signal), Oban job state/failure summary, and latest meeting pipeline health; added route/sidebar wiring and LiveView tests.
+64. Added Ops Health replay triggers (run bot poller now, re-run AI for latest meeting, reset latest Salesforce suggestion cache) with user-scoped checks and visible action feedback.
 
 ### In Progress
 1. Step 8: Finalize docs and verification.

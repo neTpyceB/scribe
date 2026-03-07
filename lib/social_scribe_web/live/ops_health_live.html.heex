@@ -63,6 +63,56 @@
   </div>
 
   <div class="bg-white shadow-xl rounded-lg p-6 space-y-3">
+    <h2 class="text-xl font-semibold text-slate-800">Replay Controls</h2>
+    <p class="text-sm text-slate-600">
+      Trigger operational actions without waiting for scheduled workers.
+    </p>
+    <div class="flex flex-wrap gap-2">
+      <button
+        id="health-run-bot-poller"
+        type="button"
+        phx-click="run_bot_poller"
+        class="inline-flex items-center px-3 py-2 border border-slate-300 text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50"
+      >
+        Run Bot Poller Now
+      </button>
+      <button
+        id="health-rerun-latest-ai"
+        type="button"
+        phx-click="rerun_latest_ai"
+        class="inline-flex items-center px-3 py-2 border border-blue-300 text-sm font-medium rounded-md text-blue-700 bg-blue-50 hover:bg-blue-100"
+      >
+        Re-run AI For Latest Meeting
+      </button>
+      <button
+        id="health-reset-salesforce-cache"
+        type="button"
+        phx-click="reset_salesforce_cache"
+        class="inline-flex items-center px-3 py-2 border border-amber-300 text-sm font-medium rounded-md text-amber-800 bg-amber-50 hover:bg-amber-100"
+      >
+        Reset Salesforce Cache
+      </button>
+    </div>
+
+    <div :if={@health.latest_bot.present?} class="text-sm text-slate-600 pt-2">
+      Latest bot: {@health.latest_bot.recall_bot_id} (status: <strong>{@health.latest_bot.status}</strong>)
+    </div>
+
+    <div
+      :if={@action_result}
+      id="health-action-result"
+      class={
+        "rounded border px-3 py-2 text-sm " <>
+          if @action_result.type == :error,
+            do: "border-red-200 bg-red-50 text-red-700",
+            else: "border-green-200 bg-green-50 text-green-700"
+      }
+    >
+      {@action_result.message}
+    </div>
+  </div>
+
+  <div class="bg-white shadow-xl rounded-lg p-6 space-y-3">
     <h2 class="text-xl font-semibold text-slate-800">Integrations</h2>
     <div class="overflow-x-auto">
       <table class="min-w-full text-sm">

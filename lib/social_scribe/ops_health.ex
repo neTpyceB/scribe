@@ -7,8 +7,12 @@ defmodule SocialScribe.OpsHealth do
 
   alias SocialScribe.Accounts
   alias SocialScribe.Automations
+  alias SocialScribe.Bots
+  alias SocialScribe.Meetings.MeetingTranscript
   alias SocialScribe.Meetings
   alias SocialScribe.Repo
+  alias SocialScribe.Workers.AIContentGenerationWorker
+  alias SocialScribe.Workers.BotStatusPoller
 
   @providers ~w(google hubspot salesforce linkedin facebook)
 
@@ -18,8 +22,46 @@ defmodule SocialScribe.OpsHealth do
       system: system_health(),
       integrations: integration_health(user),
       jobs: oban_health(),
-      pipeline: pipeline_health(user)
+      pipeline: pipeline_health(user),
+      latest_bot: latest_bot_health(user)
     }
+  end
+
+  def replay_bot_poller do
+    %{}
+    |> BotStatusPoller.new()
+    |> Oban.insert()
+  end
+
+  def rerun_latest_meeting_ai(user) do
+    case latest_meeting(user) do
+      nil ->
+        {:error, :no_meeting}
+
+      meeting ->
+        %{meeting_id: meeting.id}
+        |> AIContentGenerationWorker.new()
+        |> Oban.insert()
+    end
+  end
+
+  def reset_latest_salesforce_cache(user) do
+    case latest_meeting(user) do
+      nil ->
+        {:error, :no_meeting}
+
+      meeting ->
+        case meeting.meeting_transcript do
+          %MeetingTranscript{} = transcript ->
+            Meetings.update_meeting_transcript(transcript, %{
+              salesforce_ai_suggestions: nil,
+              salesforce_ai_transcript_hash: nil
+            })
+
+          _ ->
+            {:error, :no_transcript}
+        end
+    end
   end
 
   defp system_health do
@@ -108,10 +150,7 @@ defmodule SocialScribe.OpsHealth do
   end
 
   defp pipeline_health(user) do
-    last_meeting =
-      user
-      |> Meetings.list_user_meetings()
-      |> List.first()
+    last_meeting = latest_meeting(user)
 
     case last_meeting do
       nil ->
@@ -140,6 +179,35 @@ defmodule SocialScribe.OpsHealth do
           automation_results_count: automation_results_count
         }
     end
+  end
+
+  defp latest_bot_health(user) do
+    latest_bot =
+      Bots.RecallBot
+      |> where([b], b.user_id == ^user.id)
+      |> order_by([b], desc: b.updated_at, desc: b.id)
+      |> limit(1)
+      |> Repo.one()
+
+    case latest_bot do
+      nil ->
+        %{present?: false}
+
+      bot ->
+        %{
+          present?: true,
+          id: bot.id,
+          recall_bot_id: bot.recall_bot_id,
+          status: bot.status,
+          updated_at: bot.updated_at
+        }
+    end
+  end
+
+  defp latest_meeting(user) do
+    user
+    |> Meetings.list_user_meetings()
+    |> List.first()
   end
 
   defp transcript_present?(meeting) do
