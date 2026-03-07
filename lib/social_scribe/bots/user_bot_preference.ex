@@ -4,6 +4,7 @@ defmodule SocialScribe.Bots.UserBotPreference do
 
   schema "user_bot_preferences" do
     field :join_minute_offset, :integer, default: 2
+    field :is_admin_mode, :boolean, default: false
     belongs_to :user, SocialScribe.Accounts.User
 
     timestamps(type: :utc_datetime)
@@ -12,7 +13,7 @@ defmodule SocialScribe.Bots.UserBotPreference do
   @doc false
   def changeset(user_bot_preference, attrs) do
     user_bot_preference
-    |> cast(attrs, [:user_id, :join_minute_offset])
+    |> cast(attrs, [:user_id, :join_minute_offset, :is_admin_mode])
     |> validate_required([:user_id, :join_minute_offset])
     |> unique_constraint(:user_id)
     |> validate_inclusion(:join_minute_offset, 0..10, message: "must be between 0 and 10")

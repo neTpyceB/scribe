@@ -11,9 +11,18 @@ defmodule SocialScribeWeb.HomeLive do
   def mount(_params, _session, socket) do
     if connected?(socket), do: send(self(), :sync_calendars)
 
+    admin_mode =
+      socket.assigns.current_user.id
+      |> Bots.get_user_bot_preference()
+      |> case do
+        %{is_admin_mode: true} -> true
+        _ -> false
+      end
+
     socket =
       socket
       |> assign(:page_title, "Upcoming Meetings")
+      |> assign(:admin_mode, admin_mode)
       |> assign(:events, Calendar.list_upcoming_events(socket.assigns.current_user))
       |> assign(:loading, true)
 
@@ -38,6 +47,39 @@ defmodule SocialScribeWeb.HomeLive do
   end
 
   @impl true
+  def handle_event("toggle_admin_mode", %{"enabled" => enabled}, socket) do
+    admin_mode = enabled == "true"
+    current_user = socket.assigns.current_user
+
+    result =
+      case Bots.get_user_bot_preference(current_user.id) do
+        nil ->
+          Bots.create_user_bot_preference(%{
+            user_id: current_user.id,
+            join_minute_offset: 2,
+            is_admin_mode: admin_mode
+          })
+
+        preference ->
+          Bots.update_user_bot_preference(preference, %{is_admin_mode: admin_mode})
+      end
+
+    case result do
+      {:ok, _preference} ->
+        {:noreply,
+         socket
+         |> assign(:admin_mode, admin_mode)
+         |> push_navigate(to: ~p"/dashboard")}
+
+      {:error, _changeset} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "Could not update admin mode.")
+         |> assign(:admin_mode, false)}
+    end
+  end
+
+  @impl true
   def handle_info({:schedule_bot, event}, socket) do
     socket =
       if event.record_meeting do
@@ -47,11 +89,18 @@ defmodule SocialScribeWeb.HomeLive do
 
           {:error, reason} ->
             Logger.error("Failed to create bot: #{inspect(reason)}")
-            put_flash(socket, :error, "Failed to schedule recording bot. Please check your Recall API configuration.")
+
+            put_flash(
+              socket,
+              :error,
+              "Failed to schedule recording bot. Please check your Recall API configuration."
+            )
         end
       else
         case Bots.cancel_and_delete_bot(event) do
-          {:ok, _} -> socket
+          {:ok, _} ->
+            socket
+
           {:error, reason} ->
             Logger.error("Failed to cancel bot: #{inspect(reason)}")
             socket

@@ -51,6 +51,8 @@ Single source of truth for what is completed and ready to submit for the challen
 23. Added Ops Health page (`/dashboard/health`) to surface runtime DB health, system load signals, provider connection status, Oban job state/failure summaries, and latest meeting processing readiness.
 24. Added replay controls on Ops Health page to manually trigger bot polling, queue AI regeneration for the latest meeting, and reset Salesforce suggestion cache for latest transcript.
 25. Added Analytics page (`/dashboard/analytics`) with selectable windows (7/30/90 days), daily meeting and automation volumes, platform posting status distribution, and top automation template usage.
+26. Added full Runbook page (`/dashboard/runbook`) with operator manuals and architecture notes, plus Home-page Top Advice / FAQ quick-guide linking to complete documentation in-app.
+27. Added Home-page admin visibility toggle (`I am admin`) that gates Analytics/Health/Runbook access and hides admin-only UI blocks when disabled.
 
 ## Test Status
 1. Full Docker test suite: green (`12 properties, 283 tests, 0 failures`).

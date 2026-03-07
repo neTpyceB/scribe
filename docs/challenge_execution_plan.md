@@ -71,6 +71,8 @@ Deliver a complete, production-style submission for the Scribe challenge that is
 63. Added evaluator/operator-facing Ops Health page (`/dashboard/health`) with DB/runtime status, connected integration status (plus token-expiry signal), Oban job state/failure summary, and latest meeting pipeline health; added route/sidebar wiring and LiveView tests.
 64. Added Ops Health replay triggers (run bot poller now, re-run AI for latest meeting, reset latest Salesforce suggestion cache) with user-scoped checks and visible action feedback.
 65. Added Analytics page (`/dashboard/analytics`) with 7/30/90-day filters and usage metrics (meetings processed/day, automation results/day, posted-vs-draft by platform, top automation templates), plus route/sidebar wiring and LiveView tests.
+66. Added Runbook page (`/dashboard/runbook`) with complete operational manuals + architecture notes and linked quick-action resources; added Home dashboard Top Advice / FAQ card with shortcuts to Runbook/Health/Settings/Meetings.
+67. Added user-controlled admin visibility mode on Dashboard Home (`I am admin`): Analytics/Health/Runbook routes are now access-gated and hidden from sidebar unless enabled, and Top Advice is shown only in admin mode.
 
 ### In Progress
 1. Step 8: Finalize docs and verification.

@@ -3,6 +3,7 @@ defmodule SocialScribeWeb.OpsHealthLiveTest do
 
   import Phoenix.LiveViewTest
   import SocialScribe.AccountsFixtures
+  import SocialScribe.BotsFixtures
   import SocialScribe.CalendarFixtures
   import SocialScribe.MeetingsFixtures
 
@@ -15,7 +16,14 @@ defmodule SocialScribeWeb.OpsHealthLiveTest do
       assert path == ~p"/"
     end
 
+    test "redirects if user is not in admin mode", %{conn: conn} do
+      {:error, {:redirect, %{to: path}}} = live(conn, ~p"/dashboard/health")
+      assert path == ~p"/dashboard"
+    end
+
     test "renders health dashboard sections", %{conn: conn, user: user} do
+      user_bot_preference_fixture(%{user_id: user.id, is_admin_mode: true})
+
       _google =
         user_credential_fixture(%{
           user_id: user.id,
@@ -33,7 +41,8 @@ defmodule SocialScribeWeb.OpsHealthLiveTest do
       assert has_element?(view, "td", "google")
     end
 
-    test "triggers bot poller action", %{conn: conn} do
+    test "triggers bot poller action", %{conn: conn, user: user} do
+      user_bot_preference_fixture(%{user_id: user.id, is_admin_mode: true})
       {:ok, view, _html} = live(conn, ~p"/dashboard/health")
 
       view
@@ -43,7 +52,8 @@ defmodule SocialScribeWeb.OpsHealthLiveTest do
       assert has_element?(view, "#health-action-result", "Bot poller job triggered.")
     end
 
-    test "shows error when rerun ai has no meeting", %{conn: conn} do
+    test "shows error when rerun ai has no meeting", %{conn: conn, user: user} do
+      user_bot_preference_fixture(%{user_id: user.id, is_admin_mode: true})
       {:ok, view, _html} = live(conn, ~p"/dashboard/health")
 
       view
@@ -54,6 +64,8 @@ defmodule SocialScribeWeb.OpsHealthLiveTest do
     end
 
     test "resets salesforce cache for latest meeting transcript", %{conn: conn, user: user} do
+      user_bot_preference_fixture(%{user_id: user.id, is_admin_mode: true})
+
       calendar_event =
         calendar_event_fixture(%{
           user_id: user.id

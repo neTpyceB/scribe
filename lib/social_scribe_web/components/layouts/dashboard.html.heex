@@ -50,14 +50,23 @@
   <.sidebar
     base_path={~p"/dashboard"}
     current_path={@current_path}
-    links={[
-      {"Home", "hero-home", ~p"/dashboard"},
-      {"Meetings", "hero-calendar", ~p"/dashboard/meetings"},
-      {"Automations", "hero-rocket-launch", ~p"/dashboard/automations"},
-      {"Analytics", "hero-chart-bar", ~p"/dashboard/analytics"},
-      {"Health", "hero-heart", ~p"/dashboard/health"},
-      {"Settings", "hero-cog-6-tooth", ~p"/dashboard/settings"}
-    ]}
+    links={
+      [
+        {"Home", "hero-home", ~p"/dashboard"},
+        {"Meetings", "hero-calendar", ~p"/dashboard/meetings"},
+        {"Automations", "hero-rocket-launch", ~p"/dashboard/automations"}
+      ] ++
+        if @admin_mode do
+          [
+            {"Analytics", "hero-chart-bar", ~p"/dashboard/analytics"},
+            {"Health", "hero-heart", ~p"/dashboard/health"},
+            {"Runbook", "hero-book-open", ~p"/dashboard/runbook"}
+          ]
+        else
+          []
+        end ++
+        [{"Settings", "hero-cog-6-tooth", ~p"/dashboard/settings"}]
+    }
   />
 
   <div class="flex-1 overflow-auto">

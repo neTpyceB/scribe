@@ -43,6 +43,7 @@ defmodule SocialScribe.BotsFixtures do
     {:ok, user_bot_preference} =
       attrs
       |> Enum.into(%{
+        is_admin_mode: false,
         join_minute_offset: 2,
         user_id: user_id
       })

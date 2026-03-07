@@ -2,6 +2,7 @@ defmodule SocialScribeWeb.AnalyticsLiveTest do
   use SocialScribeWeb.ConnCase, async: true
 
   import Phoenix.LiveViewTest
+  import SocialScribe.BotsFixtures
   import SocialScribe.CalendarFixtures
   import SocialScribe.MeetingsFixtures
 
@@ -16,7 +17,13 @@ defmodule SocialScribeWeb.AnalyticsLiveTest do
       assert path == ~p"/"
     end
 
+    test "redirects if user is not in admin mode", %{conn: conn} do
+      {:error, {:redirect, %{to: path}}} = live(conn, ~p"/dashboard/analytics")
+      assert path == ~p"/dashboard"
+    end
+
     test "renders analytics dashboard and supports window filter", %{conn: conn, user: user} do
+      user_bot_preference_fixture(%{user_id: user.id, is_admin_mode: true})
       calendar_event = calendar_event_fixture(%{user_id: user.id})
       meeting = meeting_fixture(%{calendar_event_id: calendar_event.id})
 

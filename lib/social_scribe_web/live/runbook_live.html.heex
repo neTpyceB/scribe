@@ -1,0 +1,100 @@
+<div class="container mx-auto px-4 py-8 md:py-12 space-y-6">
+  <div>
+    <h1 class="text-3xl md:text-4xl font-bold text-slate-800">{@page_title}</h1>
+    <p class="text-sm text-slate-600 mt-2">
+      Operational guide for common workflows, troubleshooting, and recovery actions.
+    </p>
+  </div>
+
+  <div class="bg-white shadow-xl rounded-lg p-6 space-y-3">
+    <h2 class="text-xl font-semibold text-slate-800">Quick Links</h2>
+    <div class="flex flex-wrap gap-2">
+      <.link
+        navigate={~p"/dashboard/health"}
+        class="inline-flex items-center px-3 py-2 border border-slate-300 text-sm rounded-md text-slate-700 hover:bg-slate-50"
+      >
+        Open Health
+      </.link>
+      <.link
+        navigate={~p"/dashboard/settings"}
+        class="inline-flex items-center px-3 py-2 border border-slate-300 text-sm rounded-md text-slate-700 hover:bg-slate-50"
+      >
+        Open Settings
+      </.link>
+      <.link
+        navigate={~p"/dashboard/meetings"}
+        class="inline-flex items-center px-3 py-2 border border-slate-300 text-sm rounded-md text-slate-700 hover:bg-slate-50"
+      >
+        Open Meetings
+      </.link>
+      <.link
+        navigate={~p"/dashboard/analytics"}
+        class="inline-flex items-center px-3 py-2 border border-slate-300 text-sm rounded-md text-slate-700 hover:bg-slate-50"
+      >
+        Open Analytics
+      </.link>
+    </div>
+  </div>
+
+  <div class="bg-white shadow-xl rounded-lg p-6 space-y-4">
+    <h2 class="text-xl font-semibold text-slate-800">
+      Manual 1: No meetings appear on dashboard
+    </h2>
+    <ol class="list-decimal list-inside text-sm text-slate-700 space-y-1">
+      <li>Open Settings and confirm at least one Google account is connected.</li>
+      <li>Return to Dashboard and wait for calendar sync to complete.</li>
+      <li>If still empty, open Health page and verify database is `UP`.</li>
+      <li>Confirm your Google account has upcoming events on the primary calendar.</li>
+      <li>Reconnect Google in Settings if token is expired or missing.</li>
+    </ol>
+  </div>
+
+  <div class="bg-white shadow-xl rounded-lg p-6 space-y-4">
+    <h2 class="text-xl font-semibold text-slate-800">
+      Manual 2: Transcript missing after recording
+    </h2>
+    <ol class="list-decimal list-inside text-sm text-slate-700 space-y-1">
+      <li>Open Meetings and confirm the meeting exists in past meetings.</li>
+      <li>Open Health page and use <strong>Run Bot Poller Now</strong>.</li>
+      <li>Refresh meeting details and verify transcript section.</li>
+      <li>If still missing, verify the calendar event had a valid Meet/Zoom URL.</li>
+      <li>Check that Recall bot status is not `fatal` or `polling_error`.</li>
+    </ol>
+  </div>
+
+  <div class="bg-white shadow-xl rounded-lg p-6 space-y-4">
+    <h2 class="text-xl font-semibold text-slate-800">
+      Manual 3: HubSpot or Salesforce suggestions missing
+    </h2>
+    <ol class="list-decimal list-inside text-sm text-slate-700 space-y-1">
+      <li>Open Settings and verify CRM account is connected.</li>
+      <li>Open target meeting and confirm transcript is present.</li>
+      <li>For Salesforce, run <strong>Reset Salesforce Cache</strong> on Health and retry.</li>
+      <li>Verify Gemini API key is configured in runtime environment.</li>
+      <li>If rate-limited, wait and retry from the same modal.</li>
+    </ol>
+  </div>
+
+  <div class="bg-white shadow-xl rounded-lg p-6 space-y-4">
+    <h2 class="text-xl font-semibold text-slate-800">
+      Manual 4: AI content or posts need reprocessing
+    </h2>
+    <ol class="list-decimal list-inside text-sm text-slate-700 space-y-1">
+      <li>Open Health page and trigger <strong>Re-run AI For Latest Meeting</strong>.</li>
+      <li>Wait for background job completion and refresh meeting details.</li>
+      <li>Confirm follow-up email and automation drafts are regenerated.</li>
+      <li>Use Analytics page to confirm draft/posted counts update over time.</li>
+    </ol>
+  </div>
+
+  <div class="bg-white shadow-xl rounded-lg p-6 space-y-3">
+    <h2 class="text-xl font-semibold text-slate-800">Architecture Notes</h2>
+    <ul class="list-disc list-inside text-sm text-slate-700 space-y-1">
+      <li>OAuth credentials are stored per provider and user.</li>
+      <li>Meeting processing is asynchronous via Oban workers.</li>
+      <li>Rate limits and input guards are server-side to protect integrations.</li>
+      <li>Health page exposes runtime/integration status and safe replay triggers.</li>
+      <li>Analytics page summarizes usage trends for the selected time window.</li>
+    </ul>
+  </div>
+</div>

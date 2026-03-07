@@ -91,9 +91,18 @@ defmodule SocialScribeWeb.Router do
 
       live "/automations/:id", AutomationLive.Show, :show
       live "/automations/:id/show/edit", AutomationLive.Show, :edit
+    end
 
+    live_session :require_authenticated_admin_mode,
+      on_mount: [
+        {SocialScribeWeb.UserAuth, :ensure_authenticated},
+        {SocialScribeWeb.LiveHooks, :assign_current_path},
+        {SocialScribeWeb.LiveHooks, :require_admin_mode}
+      ],
+      layout: {SocialScribeWeb.Layouts, :dashboard} do
       live "/analytics", AnalyticsLive, :index
       live "/health", OpsHealthLive, :index
+      live "/runbook", RunbookLive, :index
     end
   end
 

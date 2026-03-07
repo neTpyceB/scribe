@@ -18,6 +18,8 @@ Latest implemented items:
 5. New Ops Health page (`/dashboard/health`) provides system/integration/background-job visibility and latest meeting pipeline health.
 6. Ops Health now includes replay triggers for bot polling, AI regeneration on latest meeting, and Salesforce suggestion cache reset.
 7. New Analytics page (`/dashboard/analytics`) provides 7/30/90-day usage visibility: meetings processed, automation output volume, posted-vs-draft status by platform, and top automation templates.
+8. New Runbook page (`/dashboard/runbook`) centralizes operational manuals and architecture notes; Dashboard Home now includes a compact Top Advice / FAQ card linking to full runbook and key pages.
+9. Dashboard now has a user-level `I am admin` toggle on Home; Analytics, Health, Runbook, and Top Advice are visible and accessible only when admin mode is enabled.
 
 ## Documentation Hub
 

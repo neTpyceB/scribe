@@ -12,6 +12,73 @@
     </p>
   </div>
 
+  <div class="mb-8 bg-white shadow-xl rounded-lg p-6">
+    <div class="inline-flex items-center gap-3 text-sm font-medium text-slate-700">
+      <label class="inline-flex items-center gap-3 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={@admin_mode}
+          phx-click="toggle_admin_mode"
+          phx-value-enabled={to_string(!@admin_mode)}
+          class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+        /> I am admin
+      </label>
+    </div>
+  </div>
+
+  <%= if @admin_mode do %>
+    <div class="mb-8 bg-white shadow-xl rounded-lg p-6 space-y-4">
+      <div class="flex items-center justify-between flex-wrap gap-2">
+        <h2 class="text-xl font-semibold text-slate-800">Top Advice / FAQ</h2>
+        <.link
+          navigate={~p"/dashboard/runbook"}
+          class="inline-flex items-center px-3 py-1.5 border border-indigo-300 text-sm font-medium rounded-md text-indigo-700 bg-indigo-50 hover:bg-indigo-100"
+        >
+          Open Full Runbook
+        </.link>
+      </div>
+
+      <ul class="list-disc list-inside text-sm text-slate-700 space-y-1">
+        <li>
+          If meetings are missing, check Google connection in Settings and DB status in Health.
+        </li>
+        <li>
+          If transcript is missing, run <strong>Bot Poller</strong>
+          from Health and refresh meeting details.
+        </li>
+        <li>
+          If Salesforce suggestions are stale, use <strong>Reset Salesforce Cache</strong>
+          in Health.
+        </li>
+        <li>
+          If AI output is missing, trigger <strong>Re-run AI For Latest Meeting</strong>
+          in Health.
+        </li>
+      </ul>
+
+      <div class="flex flex-wrap gap-2">
+        <.link
+          navigate={~p"/dashboard/health"}
+          class="inline-flex items-center px-3 py-1.5 border border-slate-300 text-sm rounded-md text-slate-700 hover:bg-slate-50"
+        >
+          Health
+        </.link>
+        <.link
+          navigate={~p"/dashboard/settings"}
+          class="inline-flex items-center px-3 py-1.5 border border-slate-300 text-sm rounded-md text-slate-700 hover:bg-slate-50"
+        >
+          Settings
+        </.link>
+        <.link
+          navigate={~p"/dashboard/meetings"}
+          class="inline-flex items-center px-3 py-1.5 border border-slate-300 text-sm rounded-md text-slate-700 hover:bg-slate-50"
+        >
+          Meetings
+        </.link>
+      </div>
+    </div>
+  <% end %>
+
   <div class="space-y-6">
     <%= if @loading do %>
       <div class="text-center p-12 bg-white rounded-lg shadow-sm border border-slate-100">
