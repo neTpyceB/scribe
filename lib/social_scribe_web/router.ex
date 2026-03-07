@@ -92,6 +92,7 @@ defmodule SocialScribeWeb.Router do
       live "/automations/:id", AutomationLive.Show, :show
       live "/automations/:id/show/edit", AutomationLive.Show, :edit
 
+      live "/analytics", AnalyticsLive, :index
       live "/health", OpsHealthLive, :index
     end
   end

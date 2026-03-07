@@ -50,6 +50,7 @@ Single source of truth for what is completed and ready to submit for the challen
 22. CI now runs `mix hex.audit`, and production enables `force_ssl` + HSTS via proxy-aware config.
 23. Added Ops Health page (`/dashboard/health`) to surface runtime DB health, system load signals, provider connection status, Oban job state/failure summaries, and latest meeting processing readiness.
 24. Added replay controls on Ops Health page to manually trigger bot polling, queue AI regeneration for the latest meeting, and reset Salesforce suggestion cache for latest transcript.
+25. Added Analytics page (`/dashboard/analytics`) with selectable windows (7/30/90 days), daily meeting and automation volumes, platform posting status distribution, and top automation template usage.
 
 ## Test Status
 1. Full Docker test suite: green (`12 properties, 283 tests, 0 failures`).

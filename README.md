@@ -17,6 +17,7 @@ Latest implemented items:
 4. Settings now visibly show the selected Facebook page (name + page ID).
 5. New Ops Health page (`/dashboard/health`) provides system/integration/background-job visibility and latest meeting pipeline health.
 6. Ops Health now includes replay triggers for bot polling, AI regeneration on latest meeting, and Salesforce suggestion cache reset.
+7. New Analytics page (`/dashboard/analytics`) provides 7/30/90-day usage visibility: meetings processed, automation output volume, posted-vs-draft status by platform, and top automation templates.
 
 ## Documentation Hub
 

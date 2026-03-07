@@ -1,0 +1,100 @@
+<div class="container mx-auto px-4 py-8 md:py-12 space-y-6">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <h1 class="text-3xl md:text-4xl font-bold text-slate-800">{@page_title}</h1>
+      <p class="text-sm text-slate-500 mt-1">Last updated: {@analytics.generated_at}</p>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <span class="text-sm text-slate-600">Window:</span>
+      <.link
+        :for={window <- @supported_windows}
+        patch={~p"/dashboard/analytics?window=#{window}"}
+        class={
+          "px-3 py-1.5 text-sm rounded-md border " <>
+            if window == @window_days,
+              do: "border-indigo-600 bg-indigo-600 text-white",
+              else: "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+        }
+      >
+        {window}d
+      </.link>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="bg-white shadow-xl rounded-lg p-6">
+      <h2 class="text-xl font-semibold text-slate-800 mb-3">Meetings Processed Per Day</h2>
+      <div class="space-y-1 max-h-72 overflow-y-auto pr-1">
+        <div :for={item <- @analytics.meetings_per_day} class="flex justify-between text-sm">
+          <span class="text-slate-600">{item.date}</span>
+          <strong class="text-slate-800">{item.count}</strong>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white shadow-xl rounded-lg p-6">
+      <h2 class="text-xl font-semibold text-slate-800 mb-3">Automation Results Per Day</h2>
+      <div class="space-y-1 max-h-72 overflow-y-auto pr-1">
+        <div
+          :for={item <- @analytics.automation_results_per_day}
+          class="flex justify-between text-sm"
+        >
+          <span class="text-slate-600">{item.date}</span>
+          <strong class="text-slate-800">{item.count}</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-white shadow-xl rounded-lg p-6">
+    <h2 class="text-xl font-semibold text-slate-800 mb-3">Posted vs Draft By Platform</h2>
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead>
+          <tr class="text-left text-slate-500 border-b">
+            <th class="py-2 pr-4">Platform</th>
+            <th class="py-2 pr-4">Posted</th>
+            <th class="py-2 pr-4">Draft</th>
+            <th class="py-2 pr-4">Generation Failed</th>
+            <th class="py-2 pr-4">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            :for={{platform, stats} <- @analytics.platform_post_stats}
+            class="border-b last:border-b-0"
+          >
+            <td class="py-2 pr-4 capitalize font-medium">{platform}</td>
+            <td class="py-2 pr-4">{stats.posted}</td>
+            <td class="py-2 pr-4">{stats.draft}</td>
+            <td class="py-2 pr-4">{stats.generation_failed}</td>
+            <td class="py-2 pr-4">{stats.total}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="bg-white shadow-xl rounded-lg p-6">
+    <h2 class="text-xl font-semibold text-slate-800 mb-3">Top Automation Templates</h2>
+    <%= if Enum.empty?(@analytics.top_automations) do %>
+      <p class="text-sm text-slate-500">No automation results in the selected window.</p>
+    <% else %>
+      <ul class="space-y-2">
+        <li
+          :for={automation <- @analytics.top_automations}
+          class="flex items-center justify-between rounded border border-slate-200 p-3"
+        >
+          <div>
+            <p class="font-medium text-slate-800">{automation.name}</p>
+            <p class="text-xs text-slate-500 capitalize">{automation.platform}</p>
+          </div>
+          <p class="text-sm text-slate-700">
+            Results: <strong>{automation.count}</strong>
+          </p>
+        </li>
+      </ul>
+    <% end %>
+  </div>
+</div>

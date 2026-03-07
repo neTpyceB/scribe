@@ -3,6 +3,7 @@ defmodule SocialScribeWeb.MeetingLive.DraftPostFormComponent do
   import SocialScribeWeb.ClipboardButton
 
   alias SocialScribe.InputGuard
+  alias SocialScribe.Automations
   alias SocialScribe.Poster
   alias SocialScribe.RateLimiter
 
@@ -77,6 +78,11 @@ defmodule SocialScribeWeb.MeetingLive.DraftPostFormComponent do
              socket.assigns.current_user
            ) do
         {:ok, _} ->
+          _ =
+            Automations.update_automation_result(socket.assigns.automation_result, %{
+              status: "posted"
+            })
+
           socket =
             socket
             |> put_flash(:info, "Post successful")
