@@ -74,6 +74,7 @@ defmodule SocialScribeWeb.SalesforceEntryTest do
       view
       |> form("#salesforce-contact-search-form", %{"salesforce_search" => %{"query" => "Ada"}})
       |> render_submit()
+
       :timer.sleep(50)
 
       assert has_element?(view, "#salesforce-search-results")
@@ -81,7 +82,10 @@ defmodule SocialScribeWeb.SalesforceEntryTest do
       assert render(view) =~ "Ada Lovelace"
     end
 
-    test "shows empty state when Salesforce search has no results", %{conn: conn, meeting: meeting} do
+    test "shows empty state when Salesforce search has no results", %{
+      conn: conn,
+      meeting: meeting
+    } do
       SocialScribe.SalesforceApiMock
       |> expect(:search_contacts, fn _credential, query ->
         assert query == "NoMatch"
@@ -97,6 +101,7 @@ defmodule SocialScribeWeb.SalesforceEntryTest do
       view
       |> form("#salesforce-contact-search-form", %{"salesforce_search" => %{"query" => "NoMatch"}})
       |> render_submit()
+
       :timer.sleep(50)
 
       assert has_element?(view, "#salesforce-search-empty")
@@ -118,7 +123,10 @@ defmodule SocialScribeWeb.SalesforceEntryTest do
       assert render(view) =~ "Enter at least 3 characters to search."
     end
 
-    test "caps displayed search results and shows narrowing notice", %{conn: conn, meeting: meeting} do
+    test "caps displayed search results and shows narrowing notice", %{
+      conn: conn,
+      meeting: meeting
+    } do
       many_contacts =
         1..12
         |> Enum.map(fn idx ->
@@ -146,14 +154,20 @@ defmodule SocialScribeWeb.SalesforceEntryTest do
       |> render_submit()
 
       assert has_element?(view, "#salesforce-search-notice")
-      assert render(view) =~ "Returned too many contacts. Showing first 10; please narrow your search."
+
+      assert render(view) =~
+               "Returned too many contacts. Showing first 10; please narrow your search."
+
       assert has_element?(view, "#salesforce-contact-result-003ABC1")
       assert has_element?(view, "#salesforce-contact-result-003ABC10")
       refute has_element?(view, "#salesforce-contact-result-003ABC11")
       refute has_element?(view, "#salesforce-contact-result-003ABC12")
     end
 
-    test "selects a Salesforce contact and loads full contact details", %{conn: conn, meeting: meeting} do
+    test "selects a Salesforce contact and loads full contact details", %{
+      conn: conn,
+      meeting: meeting
+    } do
       SocialScribe.SalesforceApiMock
       |> expect(:search_contacts, fn _credential, query ->
         assert query == "Ada"
@@ -200,11 +214,13 @@ defmodule SocialScribeWeb.SalesforceEntryTest do
       view
       |> form("#salesforce-contact-search-form", %{"salesforce_search" => %{"query" => "Ada"}})
       |> render_submit()
+
       :timer.sleep(50)
 
       view
       |> element("#salesforce-contact-result-003ABC")
       |> render_click()
+
       :timer.sleep(50)
 
       assert has_element?(view, "#salesforce-selected-contact")
@@ -214,7 +230,119 @@ defmodule SocialScribeWeb.SalesforceEntryTest do
       assert render(view) =~ "8885550000"
     end
 
-    test "shows reconnect guidance when Salesforce session is invalid", %{conn: conn, meeting: meeting} do
+    test "opens and closes mapping editor from suggestion card", %{conn: conn, meeting: meeting} do
+      SocialScribe.SalesforceApiMock
+      |> expect(:search_contacts, fn _credential, "Ada" ->
+        {:ok, [%{id: "003ABC", display_name: "Ada Lovelace", email: "ada@example.com"}]}
+      end)
+      |> expect(:get_contact, fn _credential, "003ABC" ->
+        {:ok,
+         %{
+           id: "003ABC",
+           display_name: "Ada Lovelace",
+           email: "ada@example.com",
+           phone: "1112223333"
+         }}
+      end)
+
+      SocialScribe.AIContentGeneratorMock
+      |> expect(:generate_hubspot_suggestions, fn _meeting ->
+        {:ok,
+         [%{field: "phone", value: "8885550000", context: "Client said phone is 8885550000"}]}
+      end)
+
+      {:ok, view, _html} = live(conn, ~p"/dashboard/meetings/#{meeting.id}")
+
+      view |> element("button[phx-click='open_salesforce_review']") |> render_click()
+
+      view
+      |> form("#salesforce-contact-search-form", %{"salesforce_search" => %{"query" => "Ada"}})
+      |> render_submit()
+
+      :timer.sleep(50)
+      view |> element("#salesforce-contact-result-003ABC") |> render_click()
+      :timer.sleep(50)
+
+      refute has_element?(view, "#salesforce-mapping-editor")
+
+      view
+      |> element("button[phx-click='open_salesforce_mapping'][phx-value-field='phone']")
+      |> render_click()
+
+      assert has_element?(view, "#salesforce-mapping-editor")
+
+      view
+      |> element("button[phx-click='close_salesforce_mapping']")
+      |> render_click()
+
+      refute has_element?(view, "#salesforce-mapping-editor")
+    end
+
+    test "saves mapping and applies it to refreshed suggestions", %{
+      conn: conn,
+      meeting: meeting,
+      user: user
+    } do
+      SocialScribe.SalesforceApiMock
+      |> expect(:search_contacts, fn _credential, "Ada" ->
+        {:ok, [%{id: "003ABC", display_name: "Ada Lovelace", email: "ada@example.com"}]}
+      end)
+      |> expect(:get_contact, fn _credential, "003ABC" ->
+        {:ok,
+         %{
+           id: "003ABC",
+           display_name: "Ada Lovelace",
+           email: "ada@example.com",
+           phone: "1112223333",
+           mobilephone: "3332221111"
+         }}
+      end)
+
+      SocialScribe.AIContentGeneratorMock
+      |> expect(:generate_hubspot_suggestions, fn _meeting ->
+        {:ok,
+         [%{field: "phone", value: "8885550000", context: "Client said phone is 8885550000"}]}
+      end)
+
+      {:ok, view, _html} = live(conn, ~p"/dashboard/meetings/#{meeting.id}")
+
+      view |> element("button[phx-click='open_salesforce_review']") |> render_click()
+
+      view
+      |> form("#salesforce-contact-search-form", %{"salesforce_search" => %{"query" => "Ada"}})
+      |> render_submit()
+
+      :timer.sleep(50)
+      view |> element("#salesforce-contact-result-003ABC") |> render_click()
+      :timer.sleep(50)
+
+      # Initial suggestion maps to phone.
+      assert render(view) =~ "name=\"values[phone]\""
+
+      view
+      |> element("button[phx-click='open_salesforce_mapping'][phx-value-field='phone']")
+      |> render_click()
+
+      view
+      |> form("#salesforce-mapping-form", %{
+        "salesforce_mapping" => %{"source_field" => "phone", "target_field" => "mobilephone"}
+      })
+      |> render_submit()
+
+      :timer.sleep(50)
+
+      assert render(view) =~ "Salesforce field mapping updated."
+      assert render(view) =~ "name=\"values[mobilephone]\""
+      refute render(view) =~ "name=\"values[phone]\""
+
+      mappings = SocialScribe.Accounts.get_user_salesforce_field_mappings_map(user.id)
+      assert mappings["phone"] == "mobilephone"
+    end
+
+    test "shows reconnect guidance when Salesforce session is invalid", %{
+      conn: conn,
+      meeting: meeting
+    } do
       SocialScribe.SalesforceApiMock
       |> expect(:search_contacts, fn _credential, query ->
         assert query == "Ada"
@@ -233,10 +361,13 @@ defmodule SocialScribeWeb.SalesforceEntryTest do
       view
       |> form("#salesforce-contact-search-form", %{"salesforce_search" => %{"query" => "Ada"}})
       |> render_submit()
+
       :timer.sleep(50)
 
       assert has_element?(view, "#salesforce-search-error")
-      assert render(view) =~ "Salesforce session expired. Reconnect Salesforce in Settings and try again."
+
+      assert render(view) =~
+               "Salesforce session expired. Reconnect Salesforce in Settings and try again."
     end
 
     test "shows Gemini quota guidance when suggestion generation is rate limited", %{
@@ -281,16 +412,305 @@ defmodule SocialScribeWeb.SalesforceEntryTest do
       view
       |> form("#salesforce-contact-search-form", %{"salesforce_search" => %{"query" => "Ada"}})
       |> render_submit()
+
       :timer.sleep(50)
 
       view
       |> element("#salesforce-contact-result-003ABC")
       |> render_click()
+
       :timer.sleep(50)
 
-      assert render(view) =~ "Gemini quota exceeded. Enable billing or wait for quota reset, then try again."
+      assert render(view) =~
+               "Gemini quota exceeded. Enable billing or wait for quota reset, then try again."
     end
 
+    test "applies selected Salesforce updates successfully", %{conn: conn, meeting: meeting} do
+      SocialScribe.SalesforceApiMock
+      |> expect(:search_contacts, fn _credential, "Ada" ->
+        {:ok, [%{id: "003ABC", display_name: "Ada Lovelace", email: "ada@example.com"}]}
+      end)
+      |> expect(:get_contact, fn _credential, "003ABC" ->
+        {:ok,
+         %{
+           id: "003ABC",
+           display_name: "Ada Lovelace",
+           email: "ada@example.com",
+           phone: "1112223333"
+         }}
+      end)
+      |> expect(:apply_updates, fn _credential, "003ABC", updates_list ->
+        assert Enum.any?(
+                 updates_list,
+                 &(&1.field == "phone" and &1.new_value == "8885550000" and &1.apply)
+               )
+
+        {:ok, %{id: "003ABC"}}
+      end)
+      |> expect(:get_contact, fn _credential, "003ABC" ->
+        {:ok,
+         %{
+           id: "003ABC",
+           display_name: "Ada Lovelace",
+           email: "ada@example.com",
+           phone: "8885550000"
+         }}
+      end)
+
+      SocialScribe.AIContentGeneratorMock
+      |> expect(:generate_hubspot_suggestions, fn _meeting ->
+        {:ok,
+         [%{field: "phone", value: "8885550000", context: "Client said phone is 8885550000"}]}
+      end)
+
+      {:ok, view, _html} = live(conn, ~p"/dashboard/meetings/#{meeting.id}")
+
+      view |> element("button[phx-click='open_salesforce_review']") |> render_click()
+
+      view
+      |> form("#salesforce-contact-search-form", %{"salesforce_search" => %{"query" => "Ada"}})
+      |> render_submit()
+
+      :timer.sleep(50)
+      view |> element("#salesforce-contact-result-003ABC") |> render_click()
+      :timer.sleep(50)
+
+      view
+      |> form("#salesforce-suggestions-list", %{
+        "apply" => %{"phone" => "1"},
+        "values" => %{"phone" => "8885550000"}
+      })
+      |> render_submit()
+
+      :timer.sleep(100)
+      assert render(view) =~ "Successfully updated 1 field(s) in Salesforce."
+    end
+
+    test "shows error when submitting Salesforce updates with no selected fields", %{
+      conn: conn,
+      meeting: meeting
+    } do
+      SocialScribe.SalesforceApiMock
+      |> expect(:search_contacts, fn _credential, "Ada" ->
+        {:ok, [%{id: "003ABC", display_name: "Ada Lovelace", email: "ada@example.com"}]}
+      end)
+      |> expect(:get_contact, fn _credential, "003ABC" ->
+        {:ok,
+         %{
+           id: "003ABC",
+           display_name: "Ada Lovelace",
+           email: "ada@example.com",
+           phone: "1112223333"
+         }}
+      end)
+
+      SocialScribe.AIContentGeneratorMock
+      |> expect(:generate_hubspot_suggestions, fn _meeting ->
+        {:ok,
+         [%{field: "phone", value: "8885550000", context: "Client said phone is 8885550000"}]}
+      end)
+
+      {:ok, view, _html} = live(conn, ~p"/dashboard/meetings/#{meeting.id}")
+
+      view |> element("button[phx-click='open_salesforce_review']") |> render_click()
+
+      view
+      |> form("#salesforce-contact-search-form", %{"salesforce_search" => %{"query" => "Ada"}})
+      |> render_submit()
+
+      :timer.sleep(50)
+      view |> element("#salesforce-contact-result-003ABC") |> render_click()
+      :timer.sleep(50)
+
+      render_change(view, "toggle_salesforce_suggestion", %{
+        "apply" => %{},
+        "values" => %{"phone" => "8885550000"}
+      })
+
+      render_submit(view, "apply_salesforce_updates", %{
+        "values" => %{"phone" => "8885550000"}
+      })
+
+      assert render(view) =~ "Select at least one field to update."
+    end
+
+    test "shows error when submitting updates before selecting a contact", %{
+      conn: conn,
+      meeting: meeting
+    } do
+      {:ok, view, _html} = live(conn, ~p"/dashboard/meetings/#{meeting.id}")
+
+      view |> element("button[phx-click='open_salesforce_review']") |> render_click()
+
+      render_submit(view, "apply_salesforce_updates", %{
+        "apply" => %{"phone" => "1"},
+        "values" => %{"phone" => "8885550000"}
+      })
+
+      assert render(view) =~ "Select a Salesforce contact first."
+    end
+
+    test "shows Salesforce update error when API update fails", %{conn: conn, meeting: meeting} do
+      SocialScribe.SalesforceApiMock
+      |> expect(:search_contacts, fn _credential, "Ada" ->
+        {:ok, [%{id: "003ABC", display_name: "Ada Lovelace", email: "ada@example.com"}]}
+      end)
+      |> expect(:get_contact, fn _credential, "003ABC" ->
+        {:ok,
+         %{
+           id: "003ABC",
+           display_name: "Ada Lovelace",
+           email: "ada@example.com",
+           phone: "1112223333"
+         }}
+      end)
+      |> expect(:apply_updates, fn _credential, "003ABC", _updates_list ->
+        {:error, {:api_error, 500, %{}}}
+      end)
+
+      SocialScribe.AIContentGeneratorMock
+      |> expect(:generate_hubspot_suggestions, fn _meeting ->
+        {:ok,
+         [%{field: "phone", value: "8885550000", context: "Client said phone is 8885550000"}]}
+      end)
+
+      {:ok, view, _html} = live(conn, ~p"/dashboard/meetings/#{meeting.id}")
+
+      view |> element("button[phx-click='open_salesforce_review']") |> render_click()
+
+      view
+      |> form("#salesforce-contact-search-form", %{"salesforce_search" => %{"query" => "Ada"}})
+      |> render_submit()
+
+      :timer.sleep(50)
+      view |> element("#salesforce-contact-result-003ABC") |> render_click()
+      :timer.sleep(50)
+
+      view
+      |> form("#salesforce-suggestions-list", %{
+        "apply" => %{"phone" => "1"},
+        "values" => %{"phone" => "8885550000"}
+      })
+      |> render_submit()
+
+      :timer.sleep(50)
+      assert render(view) =~ "Failed to update Salesforce contact."
+    end
+
+    test "submits edited suggestion values to Salesforce update payload", %{
+      conn: conn,
+      meeting: meeting
+    } do
+      SocialScribe.SalesforceApiMock
+      |> expect(:search_contacts, fn _credential, "Ada" ->
+        {:ok, [%{id: "003ABC", display_name: "Ada Lovelace", email: "ada@example.com"}]}
+      end)
+      |> expect(:get_contact, fn _credential, "003ABC" ->
+        {:ok,
+         %{
+           id: "003ABC",
+           display_name: "Ada Lovelace",
+           email: "ada@example.com",
+           phone: "1112223333"
+         }}
+      end)
+      |> expect(:apply_updates, fn _credential, "003ABC", updates_list ->
+        assert [%{field: "phone", new_value: "7771112222", apply: true}] = updates_list
+        {:ok, %{id: "003ABC"}}
+      end)
+      |> expect(:get_contact, fn _credential, "003ABC" ->
+        {:ok,
+         %{
+           id: "003ABC",
+           display_name: "Ada Lovelace",
+           email: "ada@example.com",
+           phone: "7771112222"
+         }}
+      end)
+
+      SocialScribe.AIContentGeneratorMock
+      |> expect(:generate_hubspot_suggestions, fn _meeting ->
+        {:ok,
+         [%{field: "phone", value: "8885550000", context: "Client said phone is 8885550000"}]}
+      end)
+
+      {:ok, view, _html} = live(conn, ~p"/dashboard/meetings/#{meeting.id}")
+
+      view |> element("button[phx-click='open_salesforce_review']") |> render_click()
+
+      view
+      |> form("#salesforce-contact-search-form", %{"salesforce_search" => %{"query" => "Ada"}})
+      |> render_submit()
+
+      :timer.sleep(50)
+      view |> element("#salesforce-contact-result-003ABC") |> render_click()
+      :timer.sleep(50)
+
+      view
+      |> form("#salesforce-suggestions-list", %{
+        "apply" => %{"phone" => "1"},
+        "values" => %{"phone" => "7771112222"}
+      })
+      |> render_submit()
+
+      :timer.sleep(100)
+      assert render(view) =~ "Successfully updated 1 field(s) in Salesforce."
+    end
+
+    test "shows partial success message when Salesforce updates but contact reload fails", %{
+      conn: conn,
+      meeting: meeting
+    } do
+      SocialScribe.SalesforceApiMock
+      |> expect(:search_contacts, fn _credential, "Ada" ->
+        {:ok, [%{id: "003ABC", display_name: "Ada Lovelace", email: "ada@example.com"}]}
+      end)
+      |> expect(:get_contact, fn _credential, "003ABC" ->
+        {:ok,
+         %{
+           id: "003ABC",
+           display_name: "Ada Lovelace",
+           email: "ada@example.com",
+           phone: "1112223333"
+         }}
+      end)
+      |> expect(:apply_updates, fn _credential, "003ABC", _updates_list ->
+        {:ok, %{id: "003ABC"}}
+      end)
+      |> expect(:get_contact, fn _credential, "003ABC" ->
+        {:error, {:http_error, :timeout}}
+      end)
+
+      SocialScribe.AIContentGeneratorMock
+      |> expect(:generate_hubspot_suggestions, fn _meeting ->
+        {:ok,
+         [%{field: "phone", value: "8885550000", context: "Client said phone is 8885550000"}]}
+      end)
+
+      {:ok, view, _html} = live(conn, ~p"/dashboard/meetings/#{meeting.id}")
+
+      view |> element("button[phx-click='open_salesforce_review']") |> render_click()
+
+      view
+      |> form("#salesforce-contact-search-form", %{"salesforce_search" => %{"query" => "Ada"}})
+      |> render_submit()
+
+      :timer.sleep(50)
+      view |> element("#salesforce-contact-result-003ABC") |> render_click()
+      :timer.sleep(50)
+
+      view
+      |> form("#salesforce-suggestions-list", %{
+        "apply" => %{"phone" => "1"},
+        "values" => %{"phone" => "8885550000"}
+      })
+      |> render_submit()
+
+      :timer.sleep(100)
+
+      assert render(view) =~ "Updated Salesforce, but failed to reload contact details."
+      assert render(view) =~ "Network error while contacting Salesforce. Please try again."
+    end
   end
 
   describe "Salesforce entry without credential" do

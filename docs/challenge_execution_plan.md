@@ -48,25 +48,23 @@ Deliver a complete, production-style submission for the Scribe challenge that is
 40. Updated Salesforce suggestions UI to match reference modal pattern (stacked suggestion cards with per-field checkbox, current→suggested value comparison, and bottom action bar styling).
 41. Added Salesforce contact-search safety guardrails: minimum 3-character query requirement, UI notice for broad/high-volume results, and hard cap of 10 rendered results to prevent oversized list rendering.
 42. Added DB-backed Gemini suggestion caching keyed by meeting transcript hash (`meeting_transcripts.salesforce_ai_transcript_hash` + cached suggestions payload) with automatic invalidation when transcript content changes.
+43. Completed Salesforce modal Step 7: implemented real `Update Salesforce` submit flow (apply selected field changes, refresh contact state, regenerate suggestions, show success/error feedback) with LiveView test coverage.
+44. Expanded Salesforce modal regression coverage for hard update paths (missing selected contact, edited-value submit payload, post-update contact-reload failure) and re-verified full Docker test suite (`12 properties, 264 tests, 0 failures`).
+45. Clarified challenge-scope integrations in docs: hard-required vs optional providers, plus final hard-requirement smoke checklist for submission readiness.
+46. Implemented Salesforce `Update mapping` flow end-to-end: per-user persisted source→target field mappings, mapping editor UI from suggestion cards, mapped suggestion regeneration, and regression tests; full suite green (`12 properties, 267 tests, 0 failures`).
 
 ### In Progress
-1. Salesforce meeting modal flow implementation.
-2. Step 6: Render existing vs suggested Salesforce values with per-field toggles.
+1. Step 8: Finalize docs and verification.
 
 ### Next Up
-1. Step 6: Render existing vs suggested Salesforce values with per-field toggles.
-2. Step 7: Add "Update Salesforce" action and persistence.
-3. Step 5: Add transcript-to-suggestion service for Salesforce fields.
-4. Step 6: Render existing vs suggested values in modal.
-5. Step 7: Add "Update Salesforce" action and persistence.
-6. Step 8: Add docs polish + requirement checklist + end-to-end QA notes.
-7. Step 9 (scheduled hardening): apply security/performance tightening across new code:
+1. Step 8: Add docs polish + requirement checklist + end-to-end QA notes.
+2. Step 9 (scheduled hardening): apply security/performance tightening across new code:
    - strict field allowlists for external update payloads
    - request size/input length bounds
    - server-side rate limiting for auth/search/update actions
    - HTTP timeout/retry policy for external API clients
    - security-focused tests (abuse cases, redaction, boundary tests)
-8. Step 10 (final pre-submission review reminder): run security and architecture pass:
+3. Step 10 (final pre-submission review reminder): run security and architecture pass:
    - DDoS/bruteforce protection verification
    - noob-error UX safeguards and clear recovery messages
    - auth/session/oauth abuse-path checks

@@ -102,6 +102,24 @@ defmodule SocialScribe.AccountsFixtures do
   end
 
   @doc """
+  Generate a user Salesforce field mapping.
+  """
+  def salesforce_field_mapping_fixture(attrs \\ %{}) do
+    user_id = attrs[:user_id] || user_fixture().id
+    source_field = attrs[:source_field] || "phone"
+    target_field = attrs[:target_field] || "mobilephone"
+
+    {:ok, mapping} =
+      SocialScribe.Accounts.upsert_user_salesforce_field_mapping(
+        user_id,
+        source_field,
+        target_field
+      )
+
+    mapping
+  end
+
+  @doc """
   Generate a facebook_page_credential.
   """
   def facebook_page_credential_fixture(attrs \\ %{}) do

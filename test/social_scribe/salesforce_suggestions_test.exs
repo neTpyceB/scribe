@@ -11,7 +11,13 @@ defmodule SocialScribe.SalesforceSuggestionsTest do
 
   test "keeps only supported changed fields and merges current contact values, then reuses cache" do
     meeting = meeting_fixture()
-    transcript = meeting_transcript_fixture(%{meeting_id: meeting.id, content: %{"data" => [%{"words" => [%{"text" => "seed"}]}]}})
+
+    transcript =
+      meeting_transcript_fixture(%{
+        meeting_id: meeting.id,
+        content: %{"data" => [%{"words" => [%{"text" => "seed"}]}]}
+      })
+
     meeting = Meetings.get_meeting_with_details(transcript.meeting_id)
 
     contact = %{
@@ -88,5 +94,38 @@ defmodule SocialScribe.SalesforceSuggestionsTest do
              SalesforceSuggestions.generate_suggestions(meeting_after_update, contact)
 
     assert Enum.any?(second, &(&1.field == "email" and &1.new_value == "new@example.com"))
+  end
+
+  test "applies user field mappings to generated suggestions" do
+    meeting = meeting_fixture()
+
+    transcript =
+      meeting_transcript_fixture(%{
+        meeting_id: meeting.id,
+        content: %{"data" => [%{"words" => [%{"text" => "seed"}]}]}
+      })
+
+    meeting = Meetings.get_meeting_with_details(transcript.meeting_id)
+
+    contact = %{phone: "123", mobilephone: "456"}
+
+    SocialScribe.AIContentGeneratorMock
+    |> expect(:generate_hubspot_suggestions, fn ^meeting ->
+      {:ok, [%{field: "phone", value: "8885550000", context: "My phone is 8885550000"}]}
+    end)
+
+    assert {:ok, suggestions} =
+             SalesforceSuggestions.generate_suggestions(
+               meeting,
+               contact,
+               field_mappings: %{"phone" => "mobilephone"}
+             )
+
+    assert Enum.count(suggestions) == 1
+    suggestion = hd(suggestions)
+    assert suggestion.field == "mobilephone"
+    assert suggestion.source_field == "phone"
+    assert suggestion.current_value == "456"
+    assert suggestion.new_value == "8885550000"
   end
 end

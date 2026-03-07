@@ -5,47 +5,24 @@ defmodule SocialScribe.SalesforceSuggestions do
 
   alias SocialScribe.AIContentGeneratorApi
   alias SocialScribe.Meetings
-
-  @allowed_fields MapSet.new([
-                    "firstname",
-                    "lastname",
-                    "email",
-                    "phone",
-                    "mobilephone",
-                    "jobtitle",
-                    "address",
-                    "city",
-                    "state",
-                    "zip",
-                    "country",
-                    "company"
-                  ])
-
-  @field_labels %{
-    "firstname" => "First Name",
-    "lastname" => "Last Name",
-    "email" => "Email",
-    "phone" => "Phone",
-    "mobilephone" => "Mobile Phone",
-    "jobtitle" => "Job Title",
-    "address" => "Address",
-    "city" => "City",
-    "state" => "State",
-    "zip" => "ZIP Code",
-    "country" => "Country",
-    "company" => "Company"
-  }
+  alias SocialScribe.SalesforceFields
 
   @doc """
   Generates suggestions and merges with current Salesforce contact values.
   """
-  def generate_suggestions(meeting, contact) when is_map(contact) do
+  def generate_suggestions(meeting, contact, opts \\ []) when is_map(contact) do
+    field_mappings =
+      opts
+      |> Keyword.get(:field_mappings, %{})
+      |> SalesforceFields.normalize_mappings()
+
     with {:ok, ai_suggestions} <- fetch_or_generate_ai_suggestions(meeting) do
       suggestions =
         ai_suggestions
         |> Enum.filter(&is_map/1)
-        |> Enum.map(&normalize_suggestion/1)
+        |> Enum.map(&normalize_suggestion(&1, field_mappings))
         |> Enum.filter(& &1)
+        |> deduplicate_by_field()
         |> Enum.map(fn suggestion ->
           current_value = get_contact_field(contact, suggestion.field)
           has_change = normalize_string(current_value) != normalize_string(suggestion.new_value)
@@ -97,23 +74,32 @@ defmodule SocialScribe.SalesforceSuggestions do
     end
   end
 
-  defp normalize_suggestion(suggestion) do
+  defp normalize_suggestion(suggestion, field_mappings) do
     field = suggestion[:field] || suggestion["field"]
     value = suggestion[:value] || suggestion["value"]
+    mapped_field = Map.get(field_mappings, field, field)
 
     with true <- is_binary(field),
          true <- is_binary(value),
-         true <- MapSet.member?(@allowed_fields, field),
+         true <- SalesforceFields.valid_field?(mapped_field),
          true <- String.trim(value) != "" do
       %{
-        field: field,
-        label: Map.get(@field_labels, field, field),
+        field: mapped_field,
+        source_field: field,
+        label: SalesforceFields.label(mapped_field),
         new_value: String.trim(value),
         context: suggestion[:context] || suggestion["context"]
       }
     else
       _ -> nil
     end
+  end
+
+  defp deduplicate_by_field(suggestions) do
+    suggestions
+    |> Enum.reverse()
+    |> Enum.uniq_by(& &1.field)
+    |> Enum.reverse()
   end
 
   defp get_contact_field(contact, field) do
