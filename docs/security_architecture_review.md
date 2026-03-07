@@ -28,6 +28,12 @@
    - Result: `No retired packages found`.
 7. External API degraded-mode architecture reviewed.
    - Existing controls confirmed: centralized timeouts/retries and normalized upstream error mapping.
+8. LinkedIn OAuth transient callback recovery added.
+   - Issue: occasional `Ueberauth` callback failures (`OAuth2: Unknown error`) during token exchange/user fetch.
+   - Action: added one-time automatic retry flow in `AuthController` for LinkedIn callback failures.
+   - Behavior: first transient failure redirects back to `/auth/linkedin`; second failure stops and redirects to Settings with explicit error flash.
+   - Safety guard: session flag (`linkedin_oauth_retry_once`) prevents infinite retry loops.
+   - Coverage: controller tests added for retry-once, stop-after-retry, and success-path session cleanup.
 
 ## Residual Risks
 1. `mix hex.audit` covers retired packages but is not a full CVE scanner for all transitive dependencies.

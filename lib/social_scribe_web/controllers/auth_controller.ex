@@ -12,6 +12,7 @@ defmodule SocialScribeWeb.AuthController do
   plug Ueberauth
 
   require Logger
+  @linkedin_retry_session_key :linkedin_oauth_retry_once
 
   @doc """
   Handles the initial request to the provider (e.g., Google).
@@ -56,6 +57,7 @@ defmodule SocialScribeWeb.AuthController do
         Logger.info(credential)
 
         conn
+        |> delete_session(@linkedin_retry_session_key)
         |> put_flash(:info, "LinkedIn account added successfully.")
         |> redirect(to: ~p"/dashboard/settings")
 
@@ -63,7 +65,42 @@ defmodule SocialScribeWeb.AuthController do
         Logger.error(reason)
 
         conn
+        |> delete_session(@linkedin_retry_session_key)
         |> put_flash(:error, "Could not add LinkedIn account.")
+        |> redirect(to: ~p"/dashboard/settings")
+    end
+  end
+
+  def callback(%{assigns: %{ueberauth_failure: failure}} = conn, %{"provider" => "linkedin"}) do
+    retry_once? = get_session(conn, @linkedin_retry_session_key) == true
+
+    cond do
+      retry_once? ->
+        Logger.warning(
+          "LinkedIn OAuth failed after retry: #{inspect(linkedin_failure_messages(failure))}"
+        )
+
+        conn
+        |> delete_session(@linkedin_retry_session_key)
+        |> put_flash(:error, "LinkedIn connection failed. Please try again.")
+        |> redirect(to: ~p"/dashboard/settings")
+
+      transient_linkedin_failure?(failure) ->
+        Logger.warning(
+          "LinkedIn OAuth transient failure, retrying once: #{inspect(linkedin_failure_messages(failure))}"
+        )
+
+        conn
+        |> put_session(@linkedin_retry_session_key, true)
+        |> put_flash(:info, "LinkedIn authorization had a temporary issue. Retrying once...")
+        |> redirect(to: ~p"/auth/linkedin")
+
+      true ->
+        Logger.warning("LinkedIn OAuth failure: #{inspect(linkedin_failure_messages(failure))}")
+
+        conn
+        |> delete_session(@linkedin_retry_session_key)
+        |> put_flash(:error, "LinkedIn connection failed. Please try again.")
         |> redirect(to: ~p"/dashboard/settings")
     end
   end
@@ -291,4 +328,29 @@ defmodule SocialScribeWeb.AuthController do
   end
 
   defp inject_facebook_scope(conn, _opts), do: conn
+
+  defp transient_linkedin_failure?(%Ueberauth.Failure{errors: errors}) when is_list(errors) do
+    Enum.any?(errors, fn
+      %Ueberauth.Failure.Error{message_key: "OAuth2", message: message}
+      when is_binary(message) ->
+        String.contains?(String.downcase(message), "unknown")
+
+      _ ->
+        false
+    end)
+  end
+
+  defp transient_linkedin_failure?(_), do: false
+
+  defp linkedin_failure_messages(%Ueberauth.Failure{errors: errors}) when is_list(errors) do
+    Enum.map(errors, fn
+      %Ueberauth.Failure.Error{message_key: key, message: message} ->
+        %{message_key: key, message: message}
+
+      other ->
+        inspect(other)
+    end)
+  end
+
+  defp linkedin_failure_messages(other), do: inspect(other)
 end

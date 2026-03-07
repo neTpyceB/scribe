@@ -53,6 +53,7 @@ Single source of truth for what is completed and ready to submit for the challen
 25. Added Analytics page (`/dashboard/analytics`) with selectable windows (7/30/90 days), daily meeting and automation volumes, platform posting status distribution, and top automation template usage.
 26. Added full Runbook page (`/dashboard/runbook`) with operator manuals and architecture notes, plus Home-page Top Advice / FAQ quick-guide linking to complete documentation in-app.
 27. Added Home-page admin visibility toggle (`I am admin`) that gates Analytics/Health/Runbook access and hides admin-only UI blocks when disabled.
+28. Added LinkedIn OAuth transient-failure recovery: one automatic retry on callback `OAuth2 Unknown error` with loop protection and clear user feedback on final failure.
 
 ## Test Status
 1. Full Docker test suite: green (`12 properties, 283 tests, 0 failures`).
