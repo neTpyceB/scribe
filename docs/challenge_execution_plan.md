@@ -54,6 +54,10 @@ Deliver a complete, production-style submission for the Scribe challenge that is
 46. Implemented Salesforce `Update mapping` flow end-to-end: per-user persisted source→target field mappings, mapping editor UI from suggestion cards, mapped suggestion regeneration, and regression tests; full suite green (`12 properties, 267 tests, 0 failures`).
 47. Aligned Salesforce contact search UX with HubSpot selector pattern (typing-based dropdown search, no separate submit flow), while preserving Salesforce safety guardrails (min query length, capped results, narrowing notice); full suite green (`12 properties, 268 tests, 0 failures`).
 48. Added evaluator-facing submission status document (`docs/submission_readiness.md`) with completed hard-requirement checklist, Salesforce scope summary, test status, and final pre-submission checks.
+49. Configured and validated LinkedIn OAuth flow (local and deployment env wiring), moving LinkedIn from deferred to completed showcase integration.
+50. Added per-account disconnect controls in Settings for Google, HubSpot, Facebook, and LinkedIn (matching Salesforce behavior), with LiveView test coverage.
+51. Hardened Facebook OAuth configurability by wiring `FACEBOOK_OAUTH_SCOPE` through runtime configuration and Docker env mapping.
+52. Verified local Facebook page-selection path using the new Meta app setup (`pages_show_list`) and green success path in Settings UI.
 
 ### In Progress
 1. Step 8: Finalize docs and verification.
@@ -73,10 +77,8 @@ Deliver a complete, production-style submission for the Scribe challenge that is
    - dependency/vulnerability scan
    - architecture/failure-mode review (timeouts, retries, degraded external APIs)
 4. Deferred optional-integrations setup (post hard-requirements lock):
-   - HubSpot OAuth app/env fix in deployed environment (`Unable to load app information`)
-   - LinkedIn OAuth app/env setup (`client_id` missing)
-   - Facebook OAuth app/env setup (`Invalid App ID`)
-   - Validate Settings page can connect all listed providers end-to-end for demo/showcase.
+   - Facebook publish scope (`pages_manage_posts`) review/approval path, then production posting verification.
+   - Validate Settings page can connect all listed providers end-to-end in deployed environment.
 
 ## Salesforce Modal Atomic Plan
 
@@ -109,7 +111,7 @@ Deliver a complete, production-style submission for the Scribe challenge that is
 ## Phase 1: Environment and Runbook First
 1. Add Docker-first local development setup with `docker-compose.yml`.
 2. Run app and database in separate containers (`app`, `postgres`).
-3. Ensure Phoenix binds to `0.0.0.0` and is reachable at `http://localhost:4000`.
+3. Ensure Phoenix binds to `0.0.0.0` and is reachable at `http://localhost:4100`.
 4. Provide one-command startup flow in docs (build, migrate, seed, run).
 5. Add `.env.example` with all required environment variables.
 6. Verify full local browser flow works from Docker only (no host Elixir dependency).
@@ -194,7 +196,7 @@ Deliver a complete, production-style submission for the Scribe challenge that is
    - Deployed app link
 
 ## Definition of Done
-1. `docker compose up` provides a working app at `http://localhost:4000`.
+1. `docker compose up` provides a working app at `http://localhost:4100`.
 2. Required integrations are documented and configurable.
 3. CI is green and validates formatting, compile, and tests.
 4. Existing tests pass; Salesforce tests pass.

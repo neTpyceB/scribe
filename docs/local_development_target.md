@@ -1,6 +1,6 @@
 # Local Development Runtime (Docker-First)
 
-# Implemented State
+## Implemented State
 1. Local development runs via Docker.
 2. App and PostgreSQL run in separate containers.
 3. App is reachable at `http://localhost:4100`.

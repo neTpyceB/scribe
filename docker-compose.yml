@@ -53,6 +53,7 @@ services:
       FACEBOOK_CLIENT_ID: ${FACEBOOK_CLIENT_ID:-}
       FACEBOOK_CLIENT_SECRET: ${FACEBOOK_CLIENT_SECRET:-}
       FACEBOOK_REDIRECT_URI: ${FACEBOOK_REDIRECT_URI:-http://localhost:4100/auth/facebook/callback}
+      FACEBOOK_OAUTH_SCOPE: ${FACEBOOK_OAUTH_SCOPE:-public_profile}
       SECRET_KEY_BASE: ${SECRET_KEY_BASE:-dev_only_change_me}
     ports:
       - "${APP_PORT:-4100}:4000"

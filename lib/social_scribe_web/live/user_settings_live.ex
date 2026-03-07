@@ -107,24 +107,26 @@ defmodule SocialScribeWeb.UserSettingsLive do
   end
 
   @impl true
-  def handle_event("disconnect_salesforce", %{"id" => id}, socket) do
-    case Enum.find(socket.assigns.salesforce_accounts, &("#{&1.id}" == id && &1.provider == "salesforce")) do
+  def handle_event("disconnect_account", %{"id" => id, "provider" => provider}, socket) do
+    accounts = provider_accounts(socket, provider)
+
+    case Enum.find(accounts, &("#{&1.id}" == id && &1.provider == provider)) do
       nil ->
-        {:noreply, put_flash(socket, :error, "Salesforce account not found.")}
+        {:noreply, put_flash(socket, :error, "#{provider_label(provider)} account not found.")}
 
       credential ->
         case Accounts.delete_user_credential(credential) do
           {:ok, _deleted_credential} ->
-            salesforce_accounts =
-              Accounts.list_user_credentials(socket.assigns.current_user, provider: "salesforce")
+            refreshed_accounts =
+              Accounts.list_user_credentials(socket.assigns.current_user, provider: provider)
 
             {:noreply,
              socket
-             |> assign(:salesforce_accounts, salesforce_accounts)
-             |> put_flash(:info, "Salesforce account disconnected successfully.")}
+             |> assign(provider_assign(provider), refreshed_accounts)
+             |> put_flash(:info, "#{provider_label(provider)} account disconnected successfully.")}
 
           {:error, _changeset} ->
-            {:noreply, put_flash(socket, :error, "Failed to disconnect Salesforce account.")}
+            {:noreply, put_flash(socket, :error, "Failed to disconnect #{provider_label(provider)} account.")}
         end
     end
   end
@@ -138,4 +140,24 @@ defmodule SocialScribeWeb.UserSettingsLive do
         Bots.update_user_bot_preference(bot_preference, params)
     end
   end
+
+  defp provider_accounts(socket, "google"), do: socket.assigns.google_accounts
+  defp provider_accounts(socket, "hubspot"), do: socket.assigns.hubspot_accounts
+  defp provider_accounts(socket, "salesforce"), do: socket.assigns.salesforce_accounts
+  defp provider_accounts(socket, "facebook"), do: socket.assigns.facebook_accounts
+  defp provider_accounts(socket, "linkedin"), do: socket.assigns.linkedin_accounts
+  defp provider_accounts(_socket, _provider), do: []
+
+  defp provider_assign("google"), do: :google_accounts
+  defp provider_assign("hubspot"), do: :hubspot_accounts
+  defp provider_assign("salesforce"), do: :salesforce_accounts
+  defp provider_assign("facebook"), do: :facebook_accounts
+  defp provider_assign("linkedin"), do: :linkedin_accounts
+
+  defp provider_label("google"), do: "Google"
+  defp provider_label("hubspot"), do: "HubSpot"
+  defp provider_label("salesforce"), do: "Salesforce"
+  defp provider_label("facebook"), do: "Facebook"
+  defp provider_label("linkedin"), do: "LinkedIn"
+  defp provider_label(provider), do: provider
 end

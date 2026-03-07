@@ -471,6 +471,28 @@ defmodule SocialScribe.AccountsTest do
       assert updated_credential.token == "new-token"
       assert updated_credential.refresh_token == "new-refresh"
     end
+
+    test "creates facebook credential when provider doesn't return email" do
+      user = user_fixture()
+
+      auth = %Ueberauth.Auth{
+        provider: :facebook,
+        uid: "facebook-uid-12345",
+        info: %Ueberauth.Auth.Info{
+          email: nil
+        },
+        credentials: %Ueberauth.Auth.Credentials{
+          token: "fb-token",
+          expires_at: DateTime.utc_now() |> DateTime.add(3600, :second) |> DateTime.to_unix()
+        }
+      }
+
+      {:ok, credential} = Accounts.find_or_create_user_credential(user, auth)
+
+      assert credential.provider == "facebook"
+      assert credential.uid == "facebook-uid-12345"
+      assert is_nil(credential.email)
+    end
   end
 
   describe "hubspot_credentials" do
