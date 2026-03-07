@@ -4,6 +4,10 @@ defmodule SocialScribeWeb.UserSessionController do
   alias SocialScribe.Accounts
   alias SocialScribeWeb.UserAuth
 
+  def new(conn, _params) do
+    redirect(conn, to: ~p"/")
+  end
+
   def create(conn, %{"_action" => "registered"} = params) do
     create(conn, params, "Account created successfully!")
   end
@@ -32,7 +36,7 @@ defmodule SocialScribeWeb.UserSessionController do
       conn
       |> put_flash(:error, "Invalid email or password")
       |> put_flash(:email, String.slice(email, 0, 160))
-      |> redirect(to: ~p"/users/log_in")
+      |> redirect(to: ~p"/")
     end
   end
 

@@ -62,6 +62,7 @@ defmodule SocialScribeWeb.Router do
   scope "/", SocialScribeWeb do
     pipe_through [:browser, :redirect_if_user_is_authenticated]
 
+    get "/users/log_in", UserSessionController, :new
     post "/users/log_in", UserSessionController, :create
   end
 

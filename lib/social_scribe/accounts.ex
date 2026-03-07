@@ -9,6 +9,7 @@ defmodule SocialScribe.Accounts do
   alias Ueberauth.Auth
 
   alias SocialScribe.Accounts.{User, UserToken, UserCredential, SalesforceFieldMapping}
+  alias SocialScribe.Calendar.CalendarEvent
 
   ## Database getters
 
@@ -217,6 +218,31 @@ defmodule SocialScribe.Accounts do
   """
   def delete_user_credential(%UserCredential{} = user_credential) do
     Repo.delete(user_credential)
+  end
+
+  @doc """
+  Disconnects a user credential while preserving historical meeting data.
+
+  Google credentials are detached from calendar events before deletion to avoid
+  foreign key violations from recall bots linked to those events.
+  """
+  def disconnect_user_credential(%UserCredential{provider: "google"} = user_credential) do
+    case Repo.transaction(fn ->
+           from(e in CalendarEvent, where: e.user_credential_id == ^user_credential.id)
+           |> Repo.update_all(set: [user_credential_id: nil])
+
+           case Repo.delete(user_credential) do
+             {:ok, deleted_credential} -> deleted_credential
+             {:error, changeset} -> Repo.rollback(changeset)
+           end
+         end) do
+      {:ok, deleted_credential} -> {:ok, deleted_credential}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  def disconnect_user_credential(%UserCredential{} = user_credential) do
+    delete_user_credential(user_credential)
   end
 
   @doc """

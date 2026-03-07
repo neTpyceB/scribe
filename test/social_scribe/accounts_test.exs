@@ -4,7 +4,11 @@ defmodule SocialScribe.AccountsTest do
   alias SocialScribe.Accounts
 
   import SocialScribe.AccountsFixtures
+  import SocialScribe.BotsFixtures
+  import SocialScribe.CalendarFixtures
   alias SocialScribe.Accounts.{User, UserToken, UserCredential}
+  alias SocialScribe.Bots.RecallBot
+  alias SocialScribe.Calendar.CalendarEvent
 
   describe "get_user_by_email/1" do
     test "does not return the user if the email does not exist" do
@@ -261,6 +265,36 @@ defmodule SocialScribe.AccountsTest do
       assert_raise Ecto.NoResultsError, fn ->
         Accounts.get_user_credential!(user_credential.id)
       end
+    end
+
+    test "disconnect_user_credential/1 detaches calendar events for google credential" do
+      user = user_fixture()
+
+      credential =
+        user_credential_fixture(%{
+          user_id: user.id,
+          provider: "google"
+        })
+
+      calendar_event =
+        calendar_event_fixture(%{
+          user_id: user.id,
+          user_credential_id: credential.id
+        })
+
+      recall_bot =
+        recall_bot_fixture(%{
+          user_id: user.id,
+          calendar_event_id: calendar_event.id
+        })
+
+      assert {:ok, %UserCredential{id: deleted_id}} = Accounts.disconnect_user_credential(credential)
+      assert deleted_id == credential.id
+      refute Repo.get(UserCredential, credential.id)
+
+      updated_event = Repo.get!(CalendarEvent, calendar_event.id)
+      assert is_nil(updated_event.user_credential_id)
+      assert %RecallBot{} = Repo.get!(RecallBot, recall_bot.id)
     end
 
     test "change_user_credential/1 returns a user_credential changeset" do

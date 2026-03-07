@@ -12,7 +12,7 @@ defmodule SocialScribeWeb.UserSettingsLiveTest do
     test "redirects if user is not logged in", %{conn: conn} do
       conn = recycle(conn)
       {:error, {:redirect, %{to: path}}} = live(conn, ~p"/dashboard/settings")
-      assert path == ~p"/users/log_in"
+      assert path == ~p"/"
     end
 
     test "renders settings page for logged-in user", %{conn: conn} do
@@ -51,7 +51,10 @@ defmodule SocialScribeWeb.UserSettingsLiveTest do
       refute has_element?(view, "p", "You haven't connected any Google accounts yet.")
     end
 
-    test "disconnects connected Google account", %{conn: conn, user: user} do
+    test "disconnects connected Google account and logs out when it is the last one", %{
+      conn: conn,
+      user: user
+    } do
       credential =
         user_credential_fixture(%{
           user_id: user.id,
@@ -68,8 +71,7 @@ defmodule SocialScribeWeb.UserSettingsLiveTest do
       |> element("#disconnect-google-#{credential.id}")
       |> render_click()
 
-      refute has_element?(view, "#disconnect-google-#{credential.id}")
-      assert has_element?(view, "p", "You haven't connected any Google accounts yet.")
+      assert_redirect(view, "/")
     end
 
     test "displays a message if no Salesforce accounts are connected", %{conn: conn} do

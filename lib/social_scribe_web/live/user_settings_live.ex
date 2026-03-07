@@ -5,7 +5,7 @@ defmodule SocialScribeWeb.UserSettingsLive do
   alias SocialScribe.Bots
 
   @impl true
-  def mount(_params, _session, socket) do
+  def mount(_params, session, socket) do
     current_user = socket.assigns.current_user
 
     google_accounts = Accounts.list_user_credentials(current_user, provider: "google")
@@ -41,6 +41,7 @@ defmodule SocialScribeWeb.UserSettingsLive do
       |> assign(:salesforce_accounts, salesforce_accounts)
       |> assign(:user_bot_preference, user_bot_preference)
       |> assign(:user_bot_preference_form, to_form(changeset))
+      |> assign(:session_user_token, session["user_token"])
 
     {:ok, socket}
   end
@@ -124,15 +125,26 @@ defmodule SocialScribeWeb.UserSettingsLive do
         {:noreply, put_flash(socket, :error, "#{provider_label(provider)} account not found.")}
 
       credential ->
-        case Accounts.delete_user_credential(credential) do
+        case Accounts.disconnect_user_credential(credential) do
           {:ok, _deleted_credential} ->
             refreshed_accounts =
               Accounts.list_user_credentials(socket.assigns.current_user, provider: provider)
 
-            {:noreply,
-             socket
-             |> assign(provider_assign(provider), refreshed_accounts)
-             |> put_flash(:info, "#{provider_label(provider)} account disconnected successfully.")}
+            socket =
+              socket
+              |> assign(provider_assign(provider), refreshed_accounts)
+              |> put_flash(:info, "#{provider_label(provider)} account disconnected successfully.")
+
+            if provider == "google" and Enum.empty?(refreshed_accounts) do
+              maybe_delete_session_token(socket.assigns.session_user_token)
+
+              {:noreply,
+               socket
+               |> put_flash(:info, "Last Google account disconnected. Please log in again.")
+               |> redirect(to: ~p"/")}
+            else
+              {:noreply, socket}
+            end
 
           {:error, _changeset} ->
             {:noreply,
@@ -174,4 +186,10 @@ defmodule SocialScribeWeb.UserSettingsLive do
   defp provider_label("facebook"), do: "Facebook"
   defp provider_label("linkedin"), do: "LinkedIn"
   defp provider_label(provider), do: provider
+
+  defp maybe_delete_session_token(token) when is_binary(token) do
+    Accounts.delete_user_session_token(token)
+  end
+
+  defp maybe_delete_session_token(_), do: :ok
 end
