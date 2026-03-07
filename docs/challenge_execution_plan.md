@@ -64,19 +64,21 @@ Deliver a complete, production-style submission for the Scribe challenge that is
 56. Hardened external API clients (Gemini/HubSpot/Salesforce/Recall/Google/Facebook/LinkedIn) with retry + timeout middleware defaults and standardized error mapping.
 57. Added regression tests for limiter and input guard boundary/abuse cases; full suite verified green (`12 properties, 283 tests, 0 failures`).
 58. Updated Settings UX to visibly show selected Facebook page details (name + page ID) in the Facebook connection section.
+59. Fixed Google disconnect reliability by introducing a safe credential disconnect path that detaches linked calendar events before deleting the credential, preventing foreign-key failures with existing recall bot history.
+60. Improved auth UX resilience by restoring a compatibility `GET /users/log_in` route (redirects to `/`) and aligning unauthenticated redirects to existing routes so local/dev no longer hits `NoRouteError`.
+61. Added end-to-end QA runbook + requirement traceability notes (`docs/end_to_end_qa_notes.md`) and linked it from docs index/submission readiness for evaluator-facing verification.
 
 ### In Progress
 1. Step 8: Finalize docs and verification.
 
 ### Next Up
-1. Add docs polish + requirement checklist + end-to-end QA notes.
-2. Run security and architecture pass:
+1. Run security and architecture pass:
    - DDoS/bruteforce protection verification
    - noob-error UX safeguards and clear recovery messages
    - auth/session/oauth abuse-path checks
    - dependency/vulnerability scan
    - architecture/failure-mode review (timeouts, retries, degraded external APIs)
-3. Deferred optional-integrations setup (post hard-requirements lock):
+2. Deferred optional-integrations setup (post hard-requirements lock):
    - Facebook publish scope (`pages_manage_posts`) review/approval path, then production posting verification.
    - Validate Settings page can connect all listed providers end-to-end in deployed environment.
 

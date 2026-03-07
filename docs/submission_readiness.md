@@ -3,6 +3,9 @@
 ## Purpose
 Single source of truth for what is completed and ready to submit for the challenge.
 
+## Related QA Artifact
+1. End-to-end runbook and evidence template: `docs/end_to_end_qa_notes.md`
+
 ## Submission Links
 1. Repository: `https://github.com/neTpyceB/scribe`
 2. Deployed app: `https://scribe.adlerclub.tech/`
@@ -40,6 +43,8 @@ Single source of truth for what is completed and ready to submit for the challen
 16. Security/performance hardening implemented: centralized runtime limits, server-side rate limiting, strict input bounds, CRM field allowlists, and standardized upstream timeout/unavailable error mapping.
 17. External API client resilience improved with shared timeout/retry defaults (Gemini/HubSpot/Salesforce/Recall/Google/Facebook/LinkedIn).
 18. Settings now show selected Facebook page identity (name + page ID) for operator clarity.
+19. Google disconnect flow is hardened: disconnect safely preserves historical meeting/bot records and logs the user out when the last Google account is disconnected.
+20. Auth route compatibility improved: legacy/manual `GET /users/log_in` now redirects to `/` to avoid missing-route failures.
 
 ## Test Status
 1. Full Docker test suite: green (`12 properties, 283 tests, 0 failures`).
