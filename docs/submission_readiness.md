@@ -48,6 +48,7 @@ Single source of truth for what is completed and ready to submit for the challen
 20. Auth route compatibility improved: legacy/manual `GET /users/log_in` now redirects to `/` to avoid missing-route failures.
 21. Password login flow hardened: strict email+password verification and IP-based login rate limiting added to reduce brute-force abuse.
 22. CI now runs `mix hex.audit`, and production enables `force_ssl` + HSTS via proxy-aware config.
+23. Added Ops Health page (`/dashboard/health`) to surface runtime DB health, system load signals, provider connection status, Oban job state/failure summaries, and latest meeting processing readiness.
 
 ## Test Status
 1. Full Docker test suite: green (`12 properties, 283 tests, 0 failures`).
