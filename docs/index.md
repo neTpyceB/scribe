@@ -8,6 +8,7 @@
 5. [Local Development Target (Docker)](docs/local_development_target.md)
 6. [Integration Accounts Checklist](docs/integration_accounts_checklist.md)
 7. [Local Setup](docs/local_setup.md)
+8. [Submission Readiness](docs/submission_readiness.md)
 
 ## Contributor Sequence
 1. Read `README.md`.

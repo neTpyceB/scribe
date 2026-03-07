@@ -5,7 +5,13 @@ defmodule SocialScribeWeb.MeetingLive.Show do
   import SocialScribeWeb.ClipboardButton
 
   import SocialScribeWeb.ModalComponents,
-    only: [hubspot_modal: 1, suggestion_card: 1, modal_footer: 1, empty_state: 1]
+    only: [
+      hubspot_modal: 1,
+      suggestion_card: 1,
+      modal_footer: 1,
+      empty_state: 1,
+      contact_select: 1
+    ]
 
   alias SocialScribe.Meetings
   alias SocialScribe.Automations
@@ -15,6 +21,7 @@ defmodule SocialScribeWeb.MeetingLive.Show do
   alias SocialScribe.HubspotSuggestions
   alias SocialScribe.SalesforceSuggestions
   alias SocialScribe.SalesforceFields
+  require Logger
 
   @impl true
   def mount(%{"id" => meeting_id}, _session, socket) do
@@ -59,6 +66,8 @@ defmodule SocialScribeWeb.MeetingLive.Show do
         |> assign(:salesforce_search_notice, nil)
         |> assign(:salesforce_search_attempted, false)
         |> assign(:salesforce_searching, false)
+        |> assign(:salesforce_dropdown_open, false)
+        |> assign(:salesforce_query, "")
         |> assign(:salesforce_selecting_contact, false)
         |> assign(:salesforce_selecting_contact_id, nil)
         |> assign(:salesforce_suggestions, [])
@@ -236,37 +245,32 @@ defmodule SocialScribeWeb.MeetingLive.Show do
         %{"salesforce_search" => %{"query" => query}},
         socket
       ) do
-    query = String.trim(query || "")
-    credential = socket.assigns.salesforce_credential
+    run_salesforce_contact_search(query, socket)
+  end
 
-    socket =
-      socket
-      |> assign(:salesforce_search_form, to_form(%{"query" => query}, as: :salesforce_search))
-      |> assign(:salesforce_search_attempted, true)
-      |> assign(:salesforce_search_error, nil)
-      |> assign(:salesforce_search_notice, nil)
-      |> assign(:salesforce_searching, true)
-      |> assign(:salesforce_selected_contact, nil)
+  @impl true
+  def handle_event(
+        "salesforce_contact_search_input",
+        %{"value" => query},
+        socket
+      ) do
+    run_salesforce_contact_search(query, socket)
+  end
 
-    cond do
-      is_nil(credential) ->
-        {:noreply,
-         socket
-         |> assign(:salesforce_contacts, [])
-         |> assign(:salesforce_searching, false)
-         |> assign(:salesforce_search_error, "Salesforce account is not connected.")}
+  @impl true
+  def handle_event("open_salesforce_contact_dropdown", _params, socket) do
+    {:noreply, assign(socket, :salesforce_dropdown_open, true)}
+  end
 
-      String.length(query) < 3 ->
-        {:noreply,
-         socket
-         |> assign(:salesforce_contacts, [])
-         |> assign(:salesforce_searching, false)
-         |> assign(:salesforce_search_error, "Enter at least 3 characters to search.")}
+  @impl true
+  def handle_event("close_salesforce_contact_dropdown", _params, socket) do
+    {:noreply, assign(socket, :salesforce_dropdown_open, false)}
+  end
 
-      true ->
-        send(self(), {:salesforce_search_contacts, credential, query})
-        {:noreply, socket}
-    end
+  @impl true
+  def handle_event("toggle_salesforce_contact_dropdown", _params, socket) do
+    {:noreply,
+     assign(socket, :salesforce_dropdown_open, !socket.assigns.salesforce_dropdown_open)}
   end
 
   @impl true
@@ -281,7 +285,8 @@ defmodule SocialScribeWeb.MeetingLive.Show do
       {:noreply,
        socket
        |> assign(:salesforce_search_error, nil)
-       |> assign(:salesforce_selected_contact, nil)
+       |> assign(:salesforce_dropdown_open, false)
+       |> assign(:salesforce_query, "")
        |> assign(:salesforce_suggestions, [])
        |> assign(:salesforce_selected_count, 0)
        |> assign(:salesforce_selecting_contact, true)
@@ -295,6 +300,9 @@ defmodule SocialScribeWeb.MeetingLive.Show do
     {:noreply,
      socket
      |> assign(:salesforce_selected_contact, nil)
+     |> assign(:salesforce_contacts, [])
+     |> assign(:salesforce_dropdown_open, false)
+     |> assign(:salesforce_query, "")
      |> assign(:salesforce_suggestions, [])
      |> assign(:salesforce_selected_count, 0)
      |> assign(:salesforce_selecting_contact, false)
@@ -416,9 +424,12 @@ defmodule SocialScribeWeb.MeetingLive.Show do
          socket
          |> assign(:salesforce_contacts, shown_contacts)
          |> assign(:salesforce_search_notice, notice)
-         |> assign(:salesforce_searching, false)}
+         |> assign(:salesforce_searching, false)
+         |> assign(:salesforce_dropdown_open, true)}
 
       {:error, reason} ->
+        Logger.warning("Salesforce contact search failed: #{inspect(reason)}")
+
         {:noreply,
          socket
          |> assign(:salesforce_contacts, [])
@@ -633,6 +644,49 @@ defmodule SocialScribeWeb.MeetingLive.Show do
   end
 
   defp salesforce_invalid_session?(_), do: false
+
+  defp run_salesforce_contact_search(query, socket) do
+    query = String.trim(query || "")
+    credential = socket.assigns.salesforce_credential
+
+    socket =
+      socket
+      |> assign(:salesforce_search_form, to_form(%{"query" => query}, as: :salesforce_search))
+      |> assign(:salesforce_search_attempted, true)
+      |> assign(:salesforce_search_error, nil)
+      |> assign(:salesforce_search_notice, nil)
+      |> assign(:salesforce_searching, query != "")
+      |> assign(:salesforce_query, query)
+      |> assign(:salesforce_selected_contact, nil)
+
+    cond do
+      is_nil(credential) ->
+        {:noreply,
+         socket
+         |> assign(:salesforce_contacts, [])
+         |> assign(:salesforce_searching, false)
+         |> assign(:salesforce_search_error, "Salesforce account is not connected.")}
+
+      query == "" ->
+        {:noreply,
+         socket
+         |> assign(:salesforce_contacts, [])
+         |> assign(:salesforce_searching, false)
+         |> assign(:salesforce_dropdown_open, false)}
+
+      String.length(query) < 3 ->
+        {:noreply,
+         socket
+         |> assign(:salesforce_contacts, [])
+         |> assign(:salesforce_searching, false)
+         |> assign(:salesforce_dropdown_open, true)
+         |> assign(:salesforce_search_error, "Enter at least 3 characters to search.")}
+
+      true ->
+        send(self(), {:salesforce_search_contacts, credential, query})
+        {:noreply, socket}
+    end
+  end
 
   defp salesforce_mapping_options do
     SalesforceFields.allowed_fields()

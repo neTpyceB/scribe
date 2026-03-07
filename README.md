@@ -165,18 +165,18 @@ Follow these steps to get SocialScribe running on your local machine.
     * Edit the `.env` file (or set environment variables directly) with your actual credentials:
         * `GOOGLE_CLIENT_ID`: Your Google OAuth Client ID.
         * `GOOGLE_CLIENT_SECRET`: Your Google OAuth Client Secret.
-        * `GOOGLE_REDIRECT_URI`: `"http://localhost:4000/auth/google/callback"`
+        * `GOOGLE_REDIRECT_URI`: `"http://localhost:4100/auth/google/callback"`
         * `RECALL_API_KEY`: Your Recall.ai API Key (as provided for the challenge).
         * `GEMINI_API_KEY`: Your Google Gemini API Key.
         * `LINKEDIN_CLIENT_ID`: Your LinkedIn App Client ID.
         * `LINKEDIN_CLIENT_SECRET`: Your LinkedIn App Client Secret.
-        * `LINKEDIN_REDIRECT_URI`: `"http://localhost:4000/auth/linkedin/callback"`
-        * `FACEBOOK_APP_ID`: Your Facebook App ID.
-        * `FACEBOOK_APP_SECRET`: Your Facebook App Secret.
-        * `FACEBOOK_REDIRECT_URI`: `"http://localhost:4000/auth/facebook/callback"`
+        * `LINKEDIN_REDIRECT_URI`: `"http://localhost:4100/auth/linkedin/callback"`
+        * `FACEBOOK_CLIENT_ID`: Your Facebook App ID.
+        * `FACEBOOK_CLIENT_SECRET`: Your Facebook App Secret.
+        * `FACEBOOK_REDIRECT_URI`: `"http://localhost:4100/auth/facebook/callback"`
         * `HUBSPOT_CLIENT_ID`: Your HubSpot App Client ID.
         * `HUBSPOT_CLIENT_SECRET`: Your HubSpot App Client Secret.
-        * `HUBSPOT_REDIRECT_URI`: `"http://localhost:4000/auth/hubspot/callback"`
+        * `HUBSPOT_REDIRECT_URI`: `"http://localhost:4100/auth/hubspot/callback"`
 
 4.  **Start the Phoenix Server:**
     ```bash
@@ -187,7 +187,7 @@ Follow these steps to get SocialScribe running on your local machine.
     iex -S mix phx.server
     ```
 
-Now you can visit [`localhost:4000`](http://localhost:4000) from your browser.
+Now you can visit [`localhost:4100`](http://localhost:4100) from your browser.
 
 ---
 
