@@ -15,6 +15,7 @@ Latest implemented items:
 2. Facebook OAuth flow now supports configurable scopes via `FACEBOOK_OAUTH_SCOPE`, including page-selection scope for local testing.
 3. Hardening is implemented: centralized limits, server-side rate limiting, strict input bounds/allowlists, and HTTP timeout/retry defaults for external clients.
 4. Settings now visibly show the selected Facebook page (name + page ID).
+5. New Ops Health page (`/dashboard/health`) provides system/integration/background-job visibility and latest meeting pipeline health.
 
 ## Documentation Hub
 

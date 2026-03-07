@@ -1,0 +1,123 @@
+<div class="container mx-auto px-4 py-8 md:py-12 space-y-6">
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-3xl md:text-4xl font-bold text-slate-800">{@page_title}</h1>
+      <p class="text-sm text-slate-500 mt-1">
+        Last updated: {@health.generated_at}
+      </p>
+    </div>
+
+    <button
+      type="button"
+      phx-click="refresh_health"
+      class="inline-flex items-center px-4 py-2 border border-slate-300 text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50"
+    >
+      Refresh
+    </button>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="bg-white shadow-xl rounded-lg p-6 space-y-3">
+      <h2 class="text-xl font-semibold text-slate-800">System Health</h2>
+      <p class="text-sm text-slate-700">
+        Database:
+        <strong class={if @health.system.db.up, do: "text-green-700", else: "text-red-700"}>
+          {if @health.system.db.up, do: "UP", else: "DOWN"}
+        </strong>
+      </p>
+      <p :if={@health.system.db.error} class="text-sm text-red-600">
+        DB error: {@health.system.db.error}
+      </p>
+      <p class="text-sm text-slate-700">Uptime: {@health.system.uptime_seconds} seconds</p>
+      <p class="text-sm text-slate-700">Processes: {@health.system.process_count}</p>
+      <p class="text-sm text-slate-700">Run queue: {@health.system.run_queue}</p>
+      <p class="text-sm text-slate-700">Memory total: {@health.system.memory_total_mb} MB</p>
+    </div>
+
+    <div class="bg-white shadow-xl rounded-lg p-6 space-y-3">
+      <h2 class="text-xl font-semibold text-slate-800">Latest Meeting Pipeline</h2>
+      <%= if @health.pipeline.has_meeting? do %>
+        <p class="text-sm text-slate-700">
+          Title: <strong>{@health.pipeline.meeting_title}</strong>
+        </p>
+        <p class="text-sm text-slate-700">Recorded at: {@health.pipeline.recorded_at}</p>
+        <p class="text-sm text-slate-700">
+          Transcript:
+          <strong>
+            {if @health.pipeline.transcript_present?, do: "Present", else: "Missing"}
+          </strong>
+        </p>
+        <p class="text-sm text-slate-700">
+          Follow-up email:
+          <strong>
+            {if @health.pipeline.follow_up_present?, do: "Present", else: "Missing"}
+          </strong>
+        </p>
+        <p class="text-sm text-slate-700">
+          Automation results: <strong>{@health.pipeline.automation_results_count}</strong>
+        </p>
+      <% else %>
+        <p class="text-sm text-slate-500">No processed meetings yet.</p>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="bg-white shadow-xl rounded-lg p-6 space-y-3">
+    <h2 class="text-xl font-semibold text-slate-800">Integrations</h2>
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead>
+          <tr class="text-left text-slate-500 border-b">
+            <th class="py-2 pr-4">Provider</th>
+            <th class="py-2 pr-4">Status</th>
+            <th class="py-2 pr-4">Connected Accounts</th>
+            <th class="py-2 pr-4">Expiring &lt; 24h</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr :for={item <- @health.integrations} class="border-b last:border-b-0">
+            <td class="py-2 pr-4 font-medium capitalize">{item.provider}</td>
+            <td class="py-2 pr-4">
+              <span class={if item.connected?, do: "text-green-700", else: "text-slate-500"}>
+                {if item.connected?, do: "Connected", else: "Not connected"}
+              </span>
+            </td>
+            <td class="py-2 pr-4">{item.connected_count}</td>
+            <td class="py-2 pr-4">{item.expiring_soon_count}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="bg-white shadow-xl rounded-lg p-6 space-y-3">
+    <h2 class="text-xl font-semibold text-slate-800">Background Jobs</h2>
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div
+        :for={{state, count} <- @health.jobs.state_counts}
+        class="rounded border border-slate-200 bg-slate-50 p-3"
+      >
+        <p class="text-xs uppercase tracking-wide text-slate-500">{state}</p>
+        <p class="text-lg font-semibold text-slate-800">{count}</p>
+      </div>
+    </div>
+
+    <div class="pt-2">
+      <h3 class="text-sm font-semibold text-slate-700 mb-2">Recent Failures</h3>
+      <%= if Enum.empty?(@health.jobs.recent_failures) do %>
+        <p class="text-sm text-slate-500">No recent retryable/discarded jobs.</p>
+      <% else %>
+        <ul class="space-y-2">
+          <li
+            :for={failure <- @health.jobs.recent_failures}
+            class="text-sm rounded border border-red-100 bg-red-50 p-2"
+          >
+            <span class="font-medium">{failure.worker}</span>
+            in queue <strong>{failure.queue}</strong>
+            at {failure.attempted_at}
+          </li>
+        </ul>
+      <% end %>
+    </div>
+  </div>
+</div>
