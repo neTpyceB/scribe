@@ -10,7 +10,9 @@ Social Scribe is a powerful Elixir and Phoenix LiveView application designed to 
 
 This repository is currently being upgraded for the Salesforce challenge requirements and Docker-first local development workflow.  
 Use the documentation hub below as the source of truth for active execution standards and plans.
-Latest implemented item: Salesforce modal now supports persisted per-user field mapping (`Update mapping`) and `Update Salesforce` end-to-end flow.
+Latest implemented items:
+1. Settings now support per-account disconnect for Google, HubSpot, Salesforce, Facebook, and LinkedIn.
+2. Facebook OAuth flow now supports configurable scopes via `FACEBOOK_OAUTH_SCOPE`, including page-selection scope for local testing.
 
 ## Documentation Hub
 
@@ -40,7 +42,8 @@ Detailed setup: [Local Setup](docs/local_setup.md)
 
 1. `Build Command`: leave empty (Railway should build from `Dockerfile`).
 2. `Start Command`: leave empty (image `ENTRYPOINT` handles migrate + server).
-3. Required env vars: at minimum set `DATABASE_URL`, `SECRET_KEY_BASE`, `PHX_HOST`, `PORT`, OAuth/API keys.
+3. Required env vars: at minimum set `DATABASE_URL`, `SECRET_KEY_BASE`, `PHX_HOST`, OAuth/API keys.
+   - Let Railway inject `PORT` automatically (do not hardcode a custom `PORT` unless needed).
    - Recommended for small Railway Postgres plans:
      - `POOL_SIZE=5`
      - `MIGRATION_POOL_SIZE=2`
@@ -85,7 +88,7 @@ If Railway Start Command is set to `/app/bin/server`, migrations are skipped and
 
 ## App Flow
 
-* **Login With Google and Meetins Sync:**
+* **Login With Google and Meetings Sync:**
     ![Auth Flow](https://youtu.be/RM7YSlu5ZDg)
 
 * **Creating Automations:**
@@ -144,8 +147,8 @@ Follow these steps to get SocialScribe running on your local machine.
 
 1.  **Clone the Repository:**
     ```bash
-    git clone https://github.com/fparadas/social_scribe.git 
-    cd social_scribe
+    git clone https://github.com/neTpyceB/scribe.git
+    cd scribe
     ```
 
 2.  **Install Dependencies & Setup Database:**
@@ -174,6 +177,8 @@ Follow these steps to get SocialScribe running on your local machine.
         * `FACEBOOK_CLIENT_ID`: Your Facebook App ID.
         * `FACEBOOK_CLIENT_SECRET`: Your Facebook App Secret.
         * `FACEBOOK_REDIRECT_URI`: `"http://localhost:4100/auth/facebook/callback"`
+        * `FACEBOOK_OAUTH_SCOPE`: Optional OAuth scopes string for Facebook login (default: `"public_profile"`). For page selection, use `"public_profile,email,pages_show_list"`.
+          - Add `"pages_manage_posts"` only after your Meta app has that permission enabled/approved.
         * `HUBSPOT_CLIENT_ID`: Your HubSpot App Client ID.
         * `HUBSPOT_CLIENT_SECRET`: Your HubSpot App Client Secret.
         * `HUBSPOT_REDIRECT_URI`: `"http://localhost:4100/auth/hubspot/callback"`

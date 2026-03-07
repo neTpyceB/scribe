@@ -79,18 +79,36 @@ defmodule SocialScribeWeb.AuthController do
               Accounts.link_facebook_page(user, credential, page)
             end)
 
-          _ ->
-            :ok
+            if Enum.empty?(facebook_pages) do
+              conn
+              |> put_flash(
+                :info,
+                "Facebook connected, but no manageable Pages were returned. Ensure your app has page permissions and your user has access to a Page."
+              )
+              |> redirect(to: ~p"/dashboard/settings")
+            else
+              conn
+              |> put_flash(
+                :info,
+                "Facebook account added successfully. Please select a page to connect."
+              )
+              |> redirect(to: ~p"/dashboard/settings/facebook_pages")
+            end
+
+          {:error, reason} ->
+            Logger.warning("Failed to fetch Facebook pages after OAuth: #{inspect(reason)}")
+
+            conn
+            |> put_flash(
+              :info,
+              "Facebook connected, but page access is not available yet. Verify page permissions in Meta App settings and try Refresh Auth."
+            )
+            |> redirect(to: ~p"/dashboard/settings")
         end
 
-        conn
-        |> put_flash(
-          :info,
-          "Facebook account added successfully. Please select a page to connect."
-        )
-        |> redirect(to: ~p"/dashboard/settings/facebook_pages")
+      {:error, reason} ->
+        Logger.error("Could not persist Facebook credential: #{inspect(reason)}")
 
-      {:error, _reason} ->
         conn
         |> put_flash(:error, "Could not add Facebook account.")
         |> redirect(to: ~p"/dashboard/settings")

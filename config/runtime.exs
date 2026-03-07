@@ -31,7 +31,8 @@ config :ueberauth, Ueberauth.Strategy.LinkedIn.OAuth,
 config :ueberauth, Ueberauth.Strategy.Facebook.OAuth,
   client_id: System.get_env("FACEBOOK_CLIENT_ID"),
   client_secret: System.get_env("FACEBOOK_CLIENT_SECRET"),
-  redirect_uri: System.get_env("FACEBOOK_REDIRECT_URI")
+  redirect_uri: System.get_env("FACEBOOK_REDIRECT_URI"),
+  scope: System.get_env("FACEBOOK_OAUTH_SCOPE", "public_profile")
 
 config :social_scribe, :recall_api_key, System.get_env("RECALL_API_KEY")
 config :social_scribe, :recall_region, System.get_env("RECALL_REGION")
@@ -45,6 +46,35 @@ config :ueberauth, Ueberauth.Strategy.Salesforce.OAuth,
   client_id: System.get_env("SALESFORCE_CLIENT_ID"),
   client_secret: System.get_env("SALESFORCE_CLIENT_SECRET"),
   site: System.get_env("SALESFORCE_SITE", "https://login.salesforce.com")
+
+facebook_scope = System.get_env("FACEBOOK_OAUTH_SCOPE", "public_profile")
+
+config :ueberauth, Ueberauth,
+  providers: [
+    google:
+      {Ueberauth.Strategy.Google,
+       [
+         default_scope: "email profile https://www.googleapis.com/auth/calendar.readonly",
+         extra_params: [access_type: "offline", prompt: "consent"]
+       ]},
+    linkedin:
+      {Ueberauth.Strategy.LinkedIn, [default_scope: "openid profile email w_member_social"]},
+    facebook:
+      {Ueberauth.Strategy.Facebook,
+       [
+         default_scope: facebook_scope
+       ]},
+    hubspot:
+      {Ueberauth.Strategy.Hubspot,
+       [
+         default_scope: "crm.objects.contacts.read crm.objects.contacts.write oauth"
+       ]},
+    salesforce:
+      {Ueberauth.Strategy.Salesforce,
+       [
+         default_scope: "api refresh_token"
+       ]}
+  ]
 
 if System.get_env("PHX_SERVER") do
   config :social_scribe, SocialScribeWeb.Endpoint, server: true

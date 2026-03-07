@@ -11,8 +11,8 @@ Track external accounts and OAuth apps needed to pass the challenge without ambi
 5. Salesforce Connected App
 
 ## Optional Integrations (Not Required To Pass This Challenge)
-1. LinkedIn OAuth App
-2. Facebook App (plus page permissions)
+1. LinkedIn OAuth App (`DONE`)
+2. Facebook App (plus page permissions) (`IN PROGRESS`)
 
 ## Why HubSpot Is Still In Hard-Required
 1. The challenge states HubSpot suggestions already work in existing functionality.
@@ -34,7 +34,7 @@ Track external accounts and OAuth apps needed to pass the challenge without ambi
 5. Salesforce: `SALESFORCE_CLIENT_ID`, `SALESFORCE_CLIENT_SECRET`, `SALESFORCE_REDIRECT_URI`
    - Optional: `SALESFORCE_SITE` (default `https://login.salesforce.com`)
 6. LinkedIn: `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, `LINKEDIN_REDIRECT_URI`
-7. Facebook: `FACEBOOK_CLIENT_ID`, `FACEBOOK_CLIENT_SECRET`, `FACEBOOK_REDIRECT_URI`
+7. Facebook: `FACEBOOK_CLIENT_ID`, `FACEBOOK_CLIENT_SECRET`, `FACEBOOK_REDIRECT_URI`, `FACEBOOK_OAUTH_SCOPE`
 
 ## Validation Checklist (Hard-Required Path)
 1. OAuth callback works in localhost.
@@ -68,8 +68,8 @@ Track external accounts and OAuth apps needed to pass the challenge without ambi
 6. Redeploy after env changes.
 
 ## Optional OAuth Troubleshooting (LinkedIn/Facebook)
-1. LinkedIn symptom: `You need to pass the "client_id" parameter`.
-2. LinkedIn likely cause: missing or empty `LINKEDIN_CLIENT_ID` in runtime env.
+1. LinkedIn symptom (resolved): `You need to pass the "client_id" parameter`.
+2. LinkedIn fix (completed): set `LINKEDIN_CLIENT_ID` and `LINKEDIN_CLIENT_SECRET` in runtime env, plus valid callback URLs in LinkedIn app settings.
 3. Facebook symptom: `Invalid App ID`.
 4. Facebook likely cause: missing/invalid `FACEBOOK_CLIENT_ID` or wrong app configured.
 5. For both providers, verify redirect URLs in provider app settings:
@@ -77,4 +77,9 @@ Track external accounts and OAuth apps needed to pass the challenge without ambi
    - prod: `https://scribe.adlerclub.tech/auth/<provider>/callback`
 6. Verify Railway env vars are set:
    - LinkedIn: `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`
-   - Facebook: `FACEBOOK_CLIENT_ID`, `FACEBOOK_CLIENT_SECRET`
+   - Facebook: `FACEBOOK_CLIENT_ID`, `FACEBOOK_CLIENT_SECRET`, `FACEBOOK_REDIRECT_URI`, `FACEBOOK_OAUTH_SCOPE`
+
+## Facebook Scope Notes
+1. Minimum scope for auth only: `public_profile`.
+2. Recommended scope for page selection in local/dev: `public_profile,email,pages_show_list`.
+3. `pages_manage_posts` may be rejected until Meta app permissions are enabled/approved; add it only when available.

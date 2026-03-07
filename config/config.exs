@@ -93,7 +93,10 @@ config :ueberauth, Ueberauth,
     facebook:
       {Ueberauth.Strategy.Facebook,
        [
-         default_scope: "email,public_profile,pages_show_list,pages_manage_posts"
+         # Keep local/dev login working with newly-created Meta apps that don't yet
+         # have Page-level permissions approved. Override via FACEBOOK_OAUTH_SCOPE
+         # when you are ready to request additional scopes in OAuth.
+         default_scope: System.get_env("FACEBOOK_OAUTH_SCOPE", "public_profile")
        ]},
     hubspot:
       {Ueberauth.Strategy.Hubspot,

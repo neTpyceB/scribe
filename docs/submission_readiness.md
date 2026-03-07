@@ -34,8 +34,16 @@ Single source of truth for what is completed and ready to submit for the challen
 10. Docker-first local development workflow implemented (app and Postgres split, Makefile commands, reproducible local setup).
 11. Added CI with automated tests and concurrency cancellation.
 12. Added and maintained living project docs in `/docs` (execution plan, integration checklist, submission readiness).
+13. LinkedIn OAuth integration configured and verified (local + deployment configuration updated).
+14. Settings page now supports one-click disconnect for all connected OAuth providers (Google, HubSpot, Salesforce, Facebook, LinkedIn).
+15. Facebook OAuth scope handling is now runtime-configurable (`FACEBOOK_OAUTH_SCOPE`) to support staged Meta permission rollout.
 
 ## Test Status
-1. Full Docker test suite: `12 properties, 268 tests, 0 failures`.
+1. Full Docker test suite: green at last full-run checkpoint (see `docs/challenge_execution_plan.md` progress history).
 2. Salesforce LiveView flow tests: passing.
 3. Salesforce suggestions unit tests: passing.
+
+## Optional / Showcase Integrations
+1. LinkedIn OAuth setup and connection flow: `DONE`
+2. Facebook OAuth app setup + local page selection flow: `DONE`
+3. Facebook production posting scope (`pages_manage_posts`) verification: `PENDING`
