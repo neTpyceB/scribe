@@ -2,7 +2,10 @@ defmodule SocialScribeWeb.UserSessionController do
   use SocialScribeWeb, :controller
 
   alias SocialScribe.Accounts
+  alias SocialScribe.RateLimiter
   alias SocialScribeWeb.UserAuth
+
+  plug :rate_limit_login_attempts when action in [:create]
 
   def new(conn, _params) do
     redirect(conn, to: ~p"/")
@@ -25,9 +28,9 @@ defmodule SocialScribeWeb.UserSessionController do
   # TODO: Add Google OAuth login
 
   defp create(conn, %{"user" => user_params}, info) do
-    %{"email" => email, "password" => _password} = user_params
+    %{"email" => email, "password" => password} = user_params
 
-    if user = Accounts.get_user_by_email(email) do
+    if user = Accounts.get_user_by_email_and_password(email, password) do
       conn
       |> put_flash(:info, info)
       |> UserAuth.log_in_user(user, user_params)
@@ -38,6 +41,34 @@ defmodule SocialScribeWeb.UserSessionController do
       |> put_flash(:email, String.slice(email, 0, 160))
       |> redirect(to: ~p"/")
     end
+  end
+
+  defp rate_limit_login_attempts(conn, _opts) do
+    key = "password_login:ip:#{remote_ip(conn)}"
+
+    case RateLimiter.allow(:auth_start, key) do
+      :ok ->
+        conn
+
+      {:error, retry_after_ms} ->
+        retry_after_seconds = max(1, ceil(retry_after_ms / 1000))
+
+        conn
+        |> put_flash(
+          :error,
+          "Too many login attempts. Please try again in #{retry_after_seconds} seconds."
+        )
+        |> redirect(to: ~p"/")
+        |> halt()
+    end
+  end
+
+  defp remote_ip(conn) do
+    conn.remote_ip
+    |> Tuple.to_list()
+    |> Enum.join(".")
+  rescue
+    _ -> "unknown"
   end
 
   def delete(conn, _params) do

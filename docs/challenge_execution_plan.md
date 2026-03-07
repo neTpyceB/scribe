@@ -67,20 +67,10 @@ Deliver a complete, production-style submission for the Scribe challenge that is
 59. Fixed Google disconnect reliability by introducing a safe credential disconnect path that detaches linked calendar events before deleting the credential, preventing foreign-key failures with existing recall bot history.
 60. Improved auth UX resilience by restoring a compatibility `GET /users/log_in` route (redirects to `/`) and aligning unauthenticated redirects to existing routes so local/dev no longer hits `NoRouteError`.
 61. Added end-to-end QA runbook + requirement traceability notes (`docs/end_to_end_qa_notes.md`) and linked it from docs index/submission readiness for evaluator-facing verification.
+62. Completed security/architecture pass: fixed password-login auth gap, added password-login rate limiting, enabled prod force-SSL/HSTS, executed dependency audit (`mix hex.audit`), and documented review outcomes in `docs/security_architecture_review.md`.
 
 ### In Progress
 1. Step 8: Finalize docs and verification.
-
-### Next Up
-1. Run security and architecture pass:
-   - DDoS/bruteforce protection verification
-   - noob-error UX safeguards and clear recovery messages
-   - auth/session/oauth abuse-path checks
-   - dependency/vulnerability scan
-   - architecture/failure-mode review (timeouts, retries, degraded external APIs)
-2. Deferred optional-integrations setup (post hard-requirements lock):
-   - Facebook publish scope (`pages_manage_posts`) review/approval path, then production posting verification.
-   - Validate Settings page can connect all listed providers end-to-end in deployed environment.
 
 ## Salesforce Modal Atomic Plan
 
