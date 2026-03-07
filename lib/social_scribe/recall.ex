@@ -2,12 +2,22 @@ defmodule SocialScribe.Recall do
   @moduledoc "The real implementation for the Recall.ai API client."
   @behaviour SocialScribe.RecallApi
 
+  alias SocialScribe.Limits
+
   defp client do
     api_key = Application.fetch_env!(:social_scribe, :recall_api_key)
     recall_region = Application.fetch_env!(:social_scribe, :recall_region)
 
+    recv_timeout = Limits.http(:default_recv_timeout_ms)
+
     Tesla.client([
       {Tesla.Middleware.BaseUrl, "https://#{recall_region}.recall.ai/api/v1"},
+      {Tesla.Middleware.Retry,
+       max_retries: Limits.http(:retry_attempts),
+       delay: Limits.http(:retry_backoff_base_ms),
+       max_delay: Limits.http(:retry_backoff_max_ms),
+       should_retry: &should_retry?/3},
+      {Tesla.Middleware.Timeout, timeout: recv_timeout},
       {Tesla.Middleware.JSON, engine_opts: [keys: :atoms]},
       {Tesla.Middleware.Headers,
        [
@@ -61,8 +71,17 @@ defmodule SocialScribe.Recall do
     with {:ok, %{body: bot_info}} <- get_bot(recall_bot_id),
          [%{id: recording_id} | _] <- Map.get(bot_info, :recordings, []),
          {:ok, %{body: recording}} <- get_recording(recording_id),
-         url when is_binary(url) <- get_in(recording, [:media_shortcuts, :transcript, :data, :download_url]) do
-      Tesla.client([{Tesla.Middleware.JSON, engine_opts: [keys: :atoms]}])
+         url when is_binary(url) <-
+           get_in(recording, [:media_shortcuts, :transcript, :data, :download_url]) do
+      Tesla.client([
+        {Tesla.Middleware.Retry,
+         max_retries: Limits.http(:retry_attempts),
+         delay: Limits.http(:retry_backoff_base_ms),
+         max_delay: Limits.http(:retry_backoff_max_ms),
+         should_retry: &should_retry?/3},
+        {Tesla.Middleware.Timeout, timeout: Limits.http(:default_recv_timeout_ms)},
+        {Tesla.Middleware.JSON, engine_opts: [keys: :atoms]}
+      ])
       |> Tesla.get(url)
     else
       [] -> {:error, :no_recordings}
@@ -81,7 +100,15 @@ defmodule SocialScribe.Recall do
          [%{id: recording_id} | _] <- Map.get(bot_info, :recordings, []),
          {:ok, %{body: recording}} <- get_recording(recording_id),
          url when is_binary(url) <- get_participants_url(recording) do
-      Tesla.client([{Tesla.Middleware.JSON, engine_opts: [keys: :atoms]}])
+      Tesla.client([
+        {Tesla.Middleware.Retry,
+         max_retries: Limits.http(:retry_attempts),
+         delay: Limits.http(:retry_backoff_base_ms),
+         max_delay: Limits.http(:retry_backoff_max_ms),
+         should_retry: &should_retry?/3},
+        {Tesla.Middleware.Timeout, timeout: Limits.http(:default_recv_timeout_ms)},
+        {Tesla.Middleware.JSON, engine_opts: [keys: :atoms]}
+      ])
       |> Tesla.get(url)
     else
       [] -> {:error, :no_recordings}
@@ -92,8 +119,14 @@ defmodule SocialScribe.Recall do
 
   defp get_participants_url(recording) do
     # Try media_shortcuts first (newer API structure)
+    # Fallback to direct participant_events (older structure)
     get_in(recording, [:media_shortcuts, :participant_events, :data, :participants_download_url]) ||
-      # Fallback to direct participant_events (older structure)
       get_in(recording, [:participant_events, :data, :participants_download_url])
   end
+
+  defp should_retry?({:ok, %{status: status}}, _env, _ctx) when status in [408, 429], do: true
+  defp should_retry?({:ok, %{status: status}}, _env, _ctx) when status >= 500, do: true
+  defp should_retry?({:error, :timeout}, _env, _ctx), do: true
+  defp should_retry?({:error, :econnrefused}, _env, _ctx), do: true
+  defp should_retry?(_, _, _), do: false
 end

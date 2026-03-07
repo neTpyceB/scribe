@@ -35,6 +35,10 @@ Track external accounts and OAuth apps needed to pass the challenge without ambi
    - Optional: `SALESFORCE_SITE` (default `https://login.salesforce.com`)
 6. LinkedIn: `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, `LINKEDIN_REDIRECT_URI`
 7. Facebook: `FACEBOOK_CLIENT_ID`, `FACEBOOK_CLIENT_SECRET`, `FACEBOOK_REDIRECT_URI`, `FACEBOOK_OAUTH_SCOPE`
+8. Security/performance limits (runtime tunables):
+   - Input bounds: `TRANSCRIPT_MAX_CHARS`, `AI_PROMPT_MAX_CHARS`, `CRM_SEARCH_MAX_CHARS`, `CRM_UPDATE_MAX_FIELDS`, `CRM_FIELD_VALUE_MAX_CHARS`, `SOCIAL_POST_MAX_CHARS`, `OAUTH_STATE_MAX_CHARS`
+   - Rate limits: `RL_AUTH_START_WINDOW_MS`, `RL_AUTH_START_MAX_REQUESTS`, `RL_AUTH_CALLBACK_WINDOW_MS`, `RL_AUTH_CALLBACK_MAX_REQUESTS`, `RL_CRM_SEARCH_WINDOW_MS`, `RL_CRM_SEARCH_MAX_REQUESTS`, `RL_CRM_UPDATE_WINDOW_MS`, `RL_CRM_UPDATE_MAX_REQUESTS`, `RL_AI_SUGGESTIONS_WINDOW_MS`, `RL_AI_SUGGESTIONS_MAX_REQUESTS`
+   - HTTP policy: `HTTP_CONNECT_TIMEOUT_MS`, `HTTP_RECV_TIMEOUT_MS`, `HTTP_GEMINI_RECV_TIMEOUT_MS`, `HTTP_RETRY_ATTEMPTS`, `HTTP_RETRY_BACKOFF_BASE_MS`, `HTTP_RETRY_BACKOFF_MAX_MS`
 
 ## Validation Checklist (Hard-Required Path)
 1. OAuth callback works in localhost.
@@ -83,3 +87,4 @@ Track external accounts and OAuth apps needed to pass the challenge without ambi
 1. Minimum scope for auth only: `public_profile`.
 2. Recommended scope for page selection in local/dev: `public_profile,email,pages_show_list`.
 3. `pages_manage_posts` may be rejected until Meta app permissions are enabled/approved; add it only when available.
+4. In Settings UI, selected Facebook page is shown explicitly as `Selected Facebook page: <name> (ID: <facebook_page_id>)`.

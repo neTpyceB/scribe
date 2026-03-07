@@ -163,6 +163,33 @@ defmodule SocialScribeWeb.UserSettingsLiveTest do
       assert has_element?(view, "p", "You haven't connected any Facebook accounts yet.")
     end
 
+    test "shows selected Facebook page id in connected Facebook row", %{conn: conn, user: user} do
+      credential =
+        user_credential_fixture(%{
+          user_id: user.id,
+          provider: "facebook",
+          uid: "facebook-page-visible-123",
+          email: "facebook-page-visible@example.com"
+        })
+
+      _page_credential =
+        facebook_page_credential_fixture(%{
+          user_id: user.id,
+          user_credential_id: credential.id,
+          page_name: "My Test Page",
+          facebook_page_id: "page-visible-123",
+          selected: true
+        })
+
+      selected_page = SocialScribe.Accounts.get_user_selected_facebook_page_credential(user)
+      assert selected_page
+      assert selected_page.facebook_page_id == "page-visible-123"
+
+      {:ok, view, _html} = live(conn, ~p"/dashboard/settings")
+
+      assert render(view) =~ "page-visible-123"
+    end
+
     test "disconnects connected LinkedIn account", %{conn: conn, user: user} do
       credential =
         user_credential_fixture(%{

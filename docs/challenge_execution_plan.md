@@ -58,25 +58,25 @@ Deliver a complete, production-style submission for the Scribe challenge that is
 50. Added per-account disconnect controls in Settings for Google, HubSpot, Facebook, and LinkedIn (matching Salesforce behavior), with LiveView test coverage.
 51. Hardened Facebook OAuth configurability by wiring `FACEBOOK_OAUTH_SCOPE` through runtime configuration and Docker env mapping.
 52. Verified local Facebook page-selection path using the new Meta app setup (`pages_show_list`) and green success path in Settings UI.
+53. Implemented centralized limits configuration (`config :social_scribe, :limits`) with runtime/env tuning for input bounds, rate limits, and HTTP timeout/retry policy.
+54. Implemented ETS-backed server-side rate limiter and integrated it into OAuth auth endpoints plus HubSpot/Salesforce LiveView external actions with user-facing retry warnings.
+55. Added strict input validation and CRM update sanitization/allowlists for HubSpot/Salesforce update paths and draft post validation before publish.
+56. Hardened external API clients (Gemini/HubSpot/Salesforce/Recall/Google/Facebook/LinkedIn) with retry + timeout middleware defaults and standardized error mapping.
+57. Added regression tests for limiter and input guard boundary/abuse cases; full suite verified green (`12 properties, 283 tests, 0 failures`).
+58. Updated Settings UX to visibly show selected Facebook page details (name + page ID) in the Facebook connection section.
 
 ### In Progress
 1. Step 8: Finalize docs and verification.
 
 ### Next Up
-1. Step 8: Add docs polish + requirement checklist + end-to-end QA notes.
-2. Step 9 (scheduled hardening): apply security/performance tightening across new code:
-   - strict field allowlists for external update payloads
-   - request size/input length bounds
-   - server-side rate limiting for auth/search/update actions
-   - HTTP timeout/retry policy for external API clients
-   - security-focused tests (abuse cases, redaction, boundary tests)
-3. Step 10 (final pre-submission review reminder): run security and architecture pass:
+1. Add docs polish + requirement checklist + end-to-end QA notes.
+2. Run security and architecture pass:
    - DDoS/bruteforce protection verification
    - noob-error UX safeguards and clear recovery messages
    - auth/session/oauth abuse-path checks
    - dependency/vulnerability scan
    - architecture/failure-mode review (timeouts, retries, degraded external APIs)
-4. Deferred optional-integrations setup (post hard-requirements lock):
+3. Deferred optional-integrations setup (post hard-requirements lock):
    - Facebook publish scope (`pages_manage_posts`) review/approval path, then production posting verification.
    - Validate Settings page can connect all listed providers end-to-end in deployed environment.
 

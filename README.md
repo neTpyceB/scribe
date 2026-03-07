@@ -13,6 +13,8 @@ Use the documentation hub below as the source of truth for active execution stan
 Latest implemented items:
 1. Settings now support per-account disconnect for Google, HubSpot, Salesforce, Facebook, and LinkedIn.
 2. Facebook OAuth flow now supports configurable scopes via `FACEBOOK_OAUTH_SCOPE`, including page-selection scope for local testing.
+3. Hardening is implemented: centralized limits, server-side rate limiting, strict input bounds/allowlists, and HTTP timeout/retry defaults for external clients.
+4. Settings now visibly show the selected Facebook page (name + page ID).
 
 ## Documentation Hub
 
@@ -182,6 +184,10 @@ Follow these steps to get SocialScribe running on your local machine.
         * `FACEBOOK_REDIRECT_URI`: `"http://localhost:4100/auth/facebook/callback"`
         * `FACEBOOK_OAUTH_SCOPE`: Optional OAuth scopes string for Facebook login (default: `"public_profile"`). For page selection, use `"public_profile,email,pages_show_list"`.
           - Add `"pages_manage_posts"` only after your Meta app has that permission enabled/approved.
+        * Security/performance limits are centralized and runtime-configurable (see `.env.example`):
+          - input bounds (`TRANSCRIPT_MAX_CHARS`, `AI_PROMPT_MAX_CHARS`, `CRM_SEARCH_MAX_CHARS`, etc.)
+          - rate limits (`RL_AUTH_*`, `RL_CRM_*`, `RL_AI_SUGGESTIONS_*`)
+          - outbound HTTP timeout/retry (`HTTP_*`)
         * `HUBSPOT_CLIENT_ID`: Your HubSpot App Client ID.
         * `HUBSPOT_CLIENT_SECRET`: Your HubSpot App Client Secret.
         * `HUBSPOT_REDIRECT_URI`: `"http://localhost:4100/auth/hubspot/callback"`
@@ -201,7 +207,7 @@ Now you can visit [`localhost:4100`](http://localhost:4100) from your browser.
 
 ## ⚙️ Functionality Deep Dive
 
-* **Connect & Sync:** Users log in with Google. The "Settings" page allows connecting multiple Google accounts, plus LinkedIn and Facebook accounts. For Facebook, after initial connection, users are guided to select a Page for posting. Calendars are synced to a database to populate the dashboard with upcoming events.
+* **Connect & Sync:** Users log in with Google. The "Settings" page allows connecting multiple Google accounts, plus LinkedIn and Facebook accounts. For Facebook, after initial connection, users are guided to select a Page for posting, and the selected page name + ID are shown in Settings. Calendars are synced to a database to populate the dashboard with upcoming events.
 * **Record & Transcribe:** On the dashboard, users toggle "Record Meeting?" for desired events. The system extracts meeting links (Zoom, Meet) and uses Recall.ai to dispatch a bot. A background poller (`BotStatusPoller`) checks for completed recordings and transcripts, saving the data to local `Meeting`, `MeetingTranscript`, and `MeetingParticipant` tables.
 * **AI Content Generation:**
     * Once a meeting is processed, an `AIContentGenerationWorker` is enqueued.
@@ -240,6 +246,7 @@ Now you can visit [`localhost:4100`](http://localhost:4100) from your browser.
 * **Selective Updates:** Checkbox per field allows selective updates; "Update HubSpot" button disabled until at least one field selected
 * **Form Submission:** Batch-updates selected contact properties via `HubspotApi.update_contact`
 * **Click-away Handler:** Closes dropdown without clearing selection
+* **Guardrails:** Search/update/suggestion actions are server-side rate-limited with explicit UI warnings; input lengths and update fields are validated before external API calls.
 
 ---
 

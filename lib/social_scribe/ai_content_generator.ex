@@ -5,6 +5,8 @@ defmodule SocialScribe.AIContentGenerator do
 
   alias SocialScribe.Meetings
   alias SocialScribe.Automations
+  alias SocialScribe.ErrorMapper
+  alias SocialScribe.Limits
 
   @gemini_model "gemini-2.5-flash"
   @gemini_api_base_url "https://generativelanguage.googleapis.com/v1beta/models"
@@ -142,45 +144,65 @@ defmodule SocialScribe.AIContentGenerator do
     if is_nil(api_key) or api_key == "" do
       {:error, {:config_error, "Gemini API key is missing - set GEMINI_API_KEY env var"}}
     else
-      path = "/#{@gemini_model}:generateContent?key=#{api_key}"
+      max_len = Limits.input(:ai_prompt_max_chars)
 
-      payload = %{
-        contents: [
-          %{
-            parts: [%{text: prompt_text}]
-          }
-        ]
-      }
+      if String.length(prompt_text) > max_len do
+        {:error, ErrorMapper.invalid_input({:too_long, max_len})}
+      else
+        path = "/#{@gemini_model}:generateContent?key=#{api_key}"
 
-      case Tesla.post(client(), path, payload) do
-        {:ok, %Tesla.Env{status: 200, body: body}} ->
-          text_path = [
-            "candidates",
-            Access.at(0),
-            "content",
-            "parts",
-            Access.at(0),
-            "text"
+        payload = %{
+          contents: [
+            %{
+              parts: [%{text: prompt_text}]
+            }
           ]
+        }
 
-          case get_in(body, text_path) do
-            nil -> {:error, {:parsing_error, "No text content found in Gemini response", body}}
-            text_content -> {:ok, text_content}
-          end
+        case Tesla.post(client(), path, payload) do
+          {:ok, %Tesla.Env{status: 200, body: body}} ->
+            text_path = [
+              "candidates",
+              Access.at(0),
+              "content",
+              "parts",
+              Access.at(0),
+              "text"
+            ]
 
-        {:ok, %Tesla.Env{status: status, body: error_body}} ->
-          {:error, {:api_error, status, error_body}}
+            case get_in(body, text_path) do
+              nil -> {:error, {:parsing_error, "No text content found in Gemini response", body}}
+              text_content -> {:ok, text_content}
+            end
 
-        {:error, reason} ->
-          {:error, {:http_error, reason}}
+          {:ok, %Tesla.Env{status: status, body: error_body}} ->
+            {:error, {:api_error, status, error_body}}
+
+          {:error, reason} ->
+            {:error, ErrorMapper.http(reason)}
+        end
       end
     end
   end
 
   defp client do
+    recv_timeout = Limits.http(:gemini_recv_timeout_ms)
+
     Tesla.client([
       {Tesla.Middleware.BaseUrl, @gemini_api_base_url},
+      {Tesla.Middleware.Retry,
+       max_retries: Limits.http(:retry_attempts),
+       delay: Limits.http(:retry_backoff_base_ms),
+       max_delay: Limits.http(:retry_backoff_max_ms),
+       should_retry: &should_retry?/3},
+      {Tesla.Middleware.Timeout, timeout: recv_timeout},
       Tesla.Middleware.JSON
     ])
   end
+
+  defp should_retry?({:ok, %{status: status}}, _env, _ctx) when status in [408, 429], do: true
+  defp should_retry?({:ok, %{status: status}}, _env, _ctx) when status >= 500, do: true
+  defp should_retry?({:error, :timeout}, _env, _ctx), do: true
+  defp should_retry?({:error, :econnrefused}, _env, _ctx), do: true
+  defp should_retry?(_, _, _), do: false
 end

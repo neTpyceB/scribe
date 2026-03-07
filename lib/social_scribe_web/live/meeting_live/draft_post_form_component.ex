@@ -2,7 +2,9 @@ defmodule SocialScribeWeb.MeetingLive.DraftPostFormComponent do
   use SocialScribeWeb, :live_component
   import SocialScribeWeb.ClipboardButton
 
+  alias SocialScribe.InputGuard
   alias SocialScribe.Poster
+  alias SocialScribe.RateLimiter
 
   @impl true
   def render(assigns) do
@@ -66,26 +68,47 @@ defmodule SocialScribeWeb.MeetingLive.DraftPostFormComponent do
 
   @impl true
   def handle_event("post", %{"generated_content" => generated_content}, socket) do
-    case Poster.post_on_social_media(
-           socket.assigns.automation.platform,
-           generated_content,
-           socket.assigns.current_user
-         ) do
-      {:ok, _} ->
-        socket =
-          socket
-          |> put_flash(:info, "Post successful")
-          |> push_patch(to: socket.assigns.patch)
+    with {:ok, _validated} <- InputGuard.validate_social_post(generated_content),
+         :ok <-
+           RateLimiter.allow(:crm_update, "user:#{socket.assigns.current_user.id}:social_post") do
+      case Poster.post_on_social_media(
+             socket.assigns.automation.platform,
+             generated_content,
+             socket.assigns.current_user
+           ) do
+        {:ok, _} ->
+          socket =
+            socket
+            |> put_flash(:info, "Post successful")
+            |> push_patch(to: socket.assigns.patch)
 
-        {:noreply, socket}
+          {:noreply, socket}
 
-      {:error, error} ->
-        socket =
-          socket
-          |> put_flash(:error, error)
-          |> push_patch(to: socket.assigns.patch)
+        {:error, error} ->
+          socket =
+            socket
+            |> put_flash(:error, error)
+            |> push_patch(to: socket.assigns.patch)
 
-        {:noreply, socket}
+          {:noreply, socket}
+      end
+    else
+      {:error, {:too_long, max_len}} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "Post is too long. Maximum #{max_len} characters.")
+         |> push_patch(to: socket.assigns.patch)}
+
+      {:error, retry_after_ms} ->
+        retry_after_seconds = max(1, ceil(retry_after_ms / 1000))
+
+        {:noreply,
+         socket
+         |> put_flash(
+           :error,
+           "Too many posting attempts. Try again in #{retry_after_seconds} seconds."
+         )
+         |> push_patch(to: socket.assigns.patch)}
     end
   end
 end

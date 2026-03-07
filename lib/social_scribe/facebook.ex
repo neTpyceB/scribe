@@ -1,6 +1,8 @@
 defmodule SocialScribe.Facebook do
   @behaviour SocialScribe.FacebookApi
 
+  alias SocialScribe.Limits
+
   require Logger
 
   @base_url "https://graph.facebook.com/v22.0"
@@ -30,7 +32,7 @@ defmodule SocialScribe.Facebook do
 
       {:error, reason} ->
         Logger.error("Facebook Page Post HTTP Error (Page ID: #{page_id}): #{inspect(reason)}")
-        {:error, {:http_error_posting, reason}}
+        {:error, {:upstream_unavailable, {:http_error_posting, reason}}}
     end
   end
 
@@ -56,13 +58,30 @@ defmodule SocialScribe.Facebook do
 
       {:ok, %Tesla.Env{status: status, body: body}} ->
         {:error, "Failed to fetch user pages: #{status} - #{body}"}
+
+      {:error, reason} ->
+        {:error, "Failed to fetch user pages: #{inspect(reason)}"}
     end
   end
 
   defp client do
+    recv_timeout = Limits.http(:default_recv_timeout_ms)
+
     Tesla.client([
       {Tesla.Middleware.BaseUrl, @base_url},
+      {Tesla.Middleware.Retry,
+       max_retries: Limits.http(:retry_attempts),
+       delay: Limits.http(:retry_backoff_base_ms),
+       max_delay: Limits.http(:retry_backoff_max_ms),
+       should_retry: &should_retry?/3},
+      {Tesla.Middleware.Timeout, timeout: recv_timeout},
       Tesla.Middleware.JSON
     ])
   end
+
+  defp should_retry?({:ok, %{status: status}}, _env, _ctx) when status in [408, 429], do: true
+  defp should_retry?({:ok, %{status: status}}, _env, _ctx) when status >= 500, do: true
+  defp should_retry?({:error, :timeout}, _env, _ctx), do: true
+  defp should_retry?({:error, :econnrefused}, _env, _ctx), do: true
+  defp should_retry?(_, _, _), do: false
 end

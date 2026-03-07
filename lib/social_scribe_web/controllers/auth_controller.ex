@@ -3,7 +3,12 @@ defmodule SocialScribeWeb.AuthController do
 
   alias SocialScribe.FacebookApi
   alias SocialScribe.Accounts
+  alias SocialScribe.Limits
+  alias SocialScribe.RateLimiter
   alias SocialScribeWeb.UserAuth
+
+  plug :rate_limit_auth_flow when action in [:request, :callback]
+  plug :inject_facebook_scope when action == :request
   plug Ueberauth
 
   require Logger
@@ -214,4 +219,76 @@ defmodule SocialScribeWeb.AuthController do
     |> put_flash(:error, "There was an error signing you in. Please try again.")
     |> redirect(to: ~p"/")
   end
+
+  defp rate_limit_auth_flow(conn, _opts) do
+    provider = conn.params["provider"] || "unknown"
+    actor = rate_limit_actor(conn)
+    action = Phoenix.Controller.action_name(conn)
+    state_param = conn.params["state"]
+
+    state_too_long? =
+      is_binary(state_param) and String.length(state_param) > Limits.input(:oauth_state_max_chars)
+
+    cond do
+      state_too_long? ->
+        conn
+        |> put_flash(:error, "Authentication request is invalid. Please try again.")
+        |> redirect(to: ~p"/")
+        |> halt()
+
+      true ->
+        action_key =
+          case action do
+            :request -> :auth_start
+            :callback -> :auth_callback
+            _ -> :auth_start
+          end
+
+        rate_limit_key = "oauth:#{provider}:#{actor}:#{Atom.to_string(action)}"
+
+        case RateLimiter.allow(action_key, rate_limit_key) do
+          :ok ->
+            conn
+
+          {:error, retry_after_ms} ->
+            retry_after_seconds = max(1, ceil(retry_after_ms / 1000))
+
+            conn
+            |> put_flash(
+              :error,
+              "Too many authentication attempts. Please try again in #{retry_after_seconds} seconds."
+            )
+            |> redirect(to: ~p"/")
+            |> halt()
+        end
+    end
+  end
+
+  defp rate_limit_actor(conn) do
+    case conn.assigns[:current_user] do
+      %{id: id} when is_integer(id) -> "user:#{id}"
+      _ -> "ip:#{remote_ip(conn)}"
+    end
+  end
+
+  defp remote_ip(conn) do
+    conn.remote_ip
+    |> Tuple.to_list()
+    |> Enum.join(".")
+  rescue
+    _ -> "unknown"
+  end
+
+  defp inject_facebook_scope(%{params: %{"provider" => "facebook"}} = conn, _opts) do
+    case Map.get(conn.params, "scope") do
+      scope when is_binary(scope) and scope != "" ->
+        conn
+
+      _ ->
+        facebook_scope = System.get_env("FACEBOOK_OAUTH_SCOPE", "public_profile")
+        %{conn | params: Map.put(conn.params, "scope", facebook_scope)}
+    end
+  end
+
+  defp inject_facebook_scope(conn, _opts), do: conn
 end

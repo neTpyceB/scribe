@@ -6,6 +6,9 @@ defmodule SocialScribe.SalesforceApi do
   @behaviour SocialScribe.SalesforceApiBehaviour
 
   alias SocialScribe.Accounts.UserCredential
+  alias SocialScribe.ErrorMapper
+  alias SocialScribe.InputGuard
+  alias SocialScribe.Limits
 
   @api_version "v61.0"
   @contact_fields [
@@ -24,7 +27,9 @@ defmodule SocialScribe.SalesforceApi do
     "Account.Name"
   ]
 
-  @field_map %{
+  # Contact-updatable fields only. "company" maps to Account.Name in reads,
+  # but Account.Name is not patchable through Contact update payloads.
+  @updatable_field_map %{
     "firstname" => "FirstName",
     "lastname" => "LastName",
     "email" => "Email",
@@ -35,34 +40,37 @@ defmodule SocialScribe.SalesforceApi do
     "city" => "MailingCity",
     "state" => "MailingState",
     "zip" => "MailingPostalCode",
-    "country" => "MailingCountry",
-    "company" => "Account.Name"
+    "country" => "MailingCountry"
   }
 
+  def allowed_update_fields, do: Map.keys(@updatable_field_map)
+
   def search_contacts(%UserCredential{} = credential, query) when is_binary(query) do
-    trimmed_query = String.trim(query)
+    with {:ok, trimmed_query} <- InputGuard.validate_crm_search_query(query, min_len: 1) do
+      if trimmed_query == "" do
+        {:ok, []}
+      else
+        soql = search_soql(trimmed_query)
+        url = "/services/data/#{@api_version}/query?q=#{URI.encode_www_form(soql)}"
 
-    if trimmed_query == "" do
-      {:ok, []}
-    else
-      soql = search_soql(trimmed_query)
-      url = "/services/data/#{@api_version}/query?q=#{URI.encode_www_form(soql)}"
+        case Tesla.get(client(credential.token), url) do
+          {:ok, %Tesla.Env{status: 200, body: %{"records" => records}}} ->
+            contacts =
+              records
+              |> Enum.map(&format_contact/1)
+              |> Enum.reject(&is_nil/1)
 
-      case Tesla.get(client(credential.token), url) do
-        {:ok, %Tesla.Env{status: 200, body: %{"records" => records}}} ->
-          contacts =
-            records
-            |> Enum.map(&format_contact/1)
-            |> Enum.reject(&is_nil/1)
+            {:ok, contacts}
 
-          {:ok, contacts}
+          {:ok, %Tesla.Env{status: status, body: body}} ->
+            {:error, ErrorMapper.api(status, body)}
 
-        {:ok, %Tesla.Env{status: status, body: body}} ->
-          {:error, {:api_error, status, body}}
-
-        {:error, reason} ->
-          {:error, {:http_error, reason}}
+          {:error, reason} ->
+            {:error, ErrorMapper.http(reason)}
+        end
       end
+    else
+      {:error, reason} -> {:error, ErrorMapper.invalid_input(reason)}
     end
   end
 
@@ -81,33 +89,42 @@ defmodule SocialScribe.SalesforceApi do
         {:error, :not_found}
 
       {:ok, %Tesla.Env{status: status, body: body}} ->
-        {:error, {:api_error, status, body}}
+        {:error, ErrorMapper.api(status, body)}
 
       {:error, reason} ->
-        {:error, {:http_error, reason}}
+        {:error, ErrorMapper.http(reason)}
     end
   end
 
   def update_contact(%UserCredential{} = credential, contact_id, updates)
       when is_binary(contact_id) and is_map(updates) do
-    update_body = normalize_updates(updates)
+    with {:ok, sanitized_updates} <-
+           InputGuard.sanitize_crm_updates(updates, allowed_update_fields()),
+         update_body <- normalize_updates(sanitized_updates),
+         false <- map_size(update_body) == 0 do
+      case Tesla.patch(
+             client(credential.token),
+             "/services/data/#{@api_version}/sobjects/Contact/#{contact_id}",
+             update_body
+           ) do
+        {:ok, %Tesla.Env{status: status}} when status in [200, 204] ->
+          {:ok, %{id: contact_id, updated_fields: update_body}}
 
-    case Tesla.patch(
-           client(credential.token),
-           "/services/data/#{@api_version}/sobjects/Contact/#{contact_id}",
-           update_body
-         ) do
-      {:ok, %Tesla.Env{status: status}} when status in [200, 204] ->
-        {:ok, %{id: contact_id, updated_fields: update_body}}
+        {:ok, %Tesla.Env{status: 404}} ->
+          {:error, :not_found}
 
-      {:ok, %Tesla.Env{status: 404}} ->
-        {:error, :not_found}
+        {:ok, %Tesla.Env{status: status, body: body}} ->
+          {:error, ErrorMapper.api(status, body)}
 
-      {:ok, %Tesla.Env{status: status, body: body}} ->
-        {:error, {:api_error, status, body}}
+        {:error, reason} ->
+          {:error, ErrorMapper.http(reason)}
+      end
+    else
+      true ->
+        {:ok, :no_updates}
 
       {:error, reason} ->
-        {:error, {:http_error, reason}}
+        {:error, ErrorMapper.invalid_input(reason)}
     end
   end
 
@@ -128,8 +145,16 @@ defmodule SocialScribe.SalesforceApi do
   end
 
   defp client(access_token) do
+    recv_timeout = Limits.http(:default_recv_timeout_ms)
+
     Tesla.client([
       {Tesla.Middleware.BaseUrl, salesforce_site()},
+      {Tesla.Middleware.Retry,
+       max_retries: Limits.http(:retry_attempts),
+       delay: Limits.http(:retry_backoff_base_ms),
+       max_delay: Limits.http(:retry_backoff_max_ms),
+       should_retry: &should_retry?/3},
+      {Tesla.Middleware.Timeout, timeout: recv_timeout},
       Tesla.Middleware.JSON,
       {Tesla.Middleware.Headers,
        [
@@ -179,21 +204,21 @@ defmodule SocialScribe.SalesforceApi do
   defp normalize_updates(updates) do
     updates
     |> Enum.reduce(%{}, fn {key, value}, acc ->
-      case map_field_name(key) do
+      key = key |> to_string() |> String.downcase()
+
+      case Map.get(@updatable_field_map, key) do
         nil -> acc
         field -> Map.put(acc, field, value)
       end
     end)
   end
 
-  defp map_field_name(field) when is_atom(field), do: map_field_name(Atom.to_string(field))
-
-  defp map_field_name(field) when is_binary(field) do
-    lowered = String.downcase(field)
-    Map.get(@field_map, lowered, field)
-  end
-
-  defp map_field_name(_), do: nil
+  defp should_retry?({:ok, %{status: status}}, _env, _ctx) when status in [408, 429], do: true
+  defp should_retry?({:ok, %{status: status}}, _env, _ctx) when status >= 500, do: true
+  defp should_retry?({:error, :timeout}, _env, _ctx), do: true
+  defp should_retry?({:error, :econnrefused}, _env, _ctx), do: true
+  defp should_retry?({:error, :closed}, _env, _ctx), do: true
+  defp should_retry?(_, _, _), do: false
 
   defp format_contact(%{"Id" => id} = record) do
     %{

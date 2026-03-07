@@ -76,6 +76,76 @@ config :ueberauth, Ueberauth,
        ]}
   ]
 
+parse_int_env = fn name, default ->
+  case System.get_env(name) do
+    nil ->
+      default
+
+    value ->
+      case Integer.parse(value) do
+        {parsed, ""} -> parsed
+        _ -> default
+      end
+  end
+end
+
+# Centralized security/performance guardrails (Step 9 baseline).
+# These values are intentionally runtime-configurable for easy prod tuning.
+config :social_scribe, :limits,
+  inputs: %{
+    # Keep this high: long multi-hour transcripts are valid challenge input.
+    transcript_max_chars:
+      parse_int_env.("TRANSCRIPT_MAX_CHARS", 2_000_000),
+    ai_prompt_max_chars:
+      parse_int_env.("AI_PROMPT_MAX_CHARS", 2_200_000),
+    crm_search_max_chars:
+      parse_int_env.("CRM_SEARCH_MAX_CHARS", 120),
+    crm_update_max_fields:
+      parse_int_env.("CRM_UPDATE_MAX_FIELDS", 25),
+    crm_field_value_max_chars:
+      parse_int_env.("CRM_FIELD_VALUE_MAX_CHARS", 2_000),
+    social_post_max_chars:
+      parse_int_env.("SOCIAL_POST_MAX_CHARS", 3_000),
+    oauth_state_max_chars:
+      parse_int_env.("OAUTH_STATE_MAX_CHARS", 200)
+  },
+  rate_limits: %{
+    auth_start_window_ms:
+      parse_int_env.("RL_AUTH_START_WINDOW_MS", 60_000),
+    auth_start_max_requests:
+      parse_int_env.("RL_AUTH_START_MAX_REQUESTS", 20),
+    auth_callback_window_ms:
+      parse_int_env.("RL_AUTH_CALLBACK_WINDOW_MS", 60_000),
+    auth_callback_max_requests:
+      parse_int_env.("RL_AUTH_CALLBACK_MAX_REQUESTS", 30),
+    crm_search_window_ms:
+      parse_int_env.("RL_CRM_SEARCH_WINDOW_MS", 60_000),
+    crm_search_max_requests:
+      parse_int_env.("RL_CRM_SEARCH_MAX_REQUESTS", 40),
+    crm_update_window_ms:
+      parse_int_env.("RL_CRM_UPDATE_WINDOW_MS", 60_000),
+    crm_update_max_requests:
+      parse_int_env.("RL_CRM_UPDATE_MAX_REQUESTS", 20),
+    ai_suggestions_window_ms:
+      parse_int_env.("RL_AI_SUGGESTIONS_WINDOW_MS", 60_000),
+    ai_suggestions_max_requests:
+      parse_int_env.("RL_AI_SUGGESTIONS_MAX_REQUESTS", 12)
+  },
+  http: %{
+    default_connect_timeout_ms:
+      parse_int_env.("HTTP_CONNECT_TIMEOUT_MS", 5_000),
+    default_recv_timeout_ms:
+      parse_int_env.("HTTP_RECV_TIMEOUT_MS", 20_000),
+    gemini_recv_timeout_ms:
+      parse_int_env.("HTTP_GEMINI_RECV_TIMEOUT_MS", 180_000),
+    retry_attempts:
+      parse_int_env.("HTTP_RETRY_ATTEMPTS", 2),
+    retry_backoff_base_ms:
+      parse_int_env.("HTTP_RETRY_BACKOFF_BASE_MS", 250),
+    retry_backoff_max_ms:
+      parse_int_env.("HTTP_RETRY_BACKOFF_MAX_MS", 2_000)
+  }
+
 if System.get_env("PHX_SERVER") do
   config :social_scribe, SocialScribeWeb.Endpoint, server: true
 end

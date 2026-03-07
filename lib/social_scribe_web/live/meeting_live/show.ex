@@ -19,6 +19,8 @@ defmodule SocialScribeWeb.MeetingLive.Show do
   alias SocialScribe.HubspotApiBehaviour, as: HubspotApi
   alias SocialScribe.SalesforceApiBehaviour, as: SalesforceApi
   alias SocialScribe.HubspotSuggestions
+  alias SocialScribe.InputGuard
+  alias SocialScribe.RateLimiter
   alias SocialScribe.SalesforceSuggestions
   alias SocialScribe.SalesforceFields
   require Logger
@@ -277,21 +279,40 @@ defmodule SocialScribeWeb.MeetingLive.Show do
   def handle_event("select_salesforce_contact", %{"id" => contact_id}, socket) do
     credential = socket.assigns.salesforce_credential
 
-    if is_nil(credential) do
-      {:noreply, assign(socket, :salesforce_search_error, "Salesforce account is not connected.")}
-    else
-      send(self(), {:salesforce_select_contact, credential, contact_id, socket.assigns.meeting})
+    cond do
+      is_nil(credential) ->
+        {:noreply,
+         assign(socket, :salesforce_search_error, "Salesforce account is not connected.")}
 
-      {:noreply,
-       socket
-       |> assign(:salesforce_search_error, nil)
-       |> assign(:salesforce_dropdown_open, false)
-       |> assign(:salesforce_query, "")
-       |> assign(:salesforce_suggestions, [])
-       |> assign(:salesforce_selected_count, 0)
-       |> assign(:salesforce_selecting_contact, true)
-       |> assign(:salesforce_selecting_contact_id, contact_id)
-       |> assign(:salesforce_suggestions_loading, true)}
+      true ->
+        case rate_limit(socket, :ai_suggestions) do
+          :ok ->
+            send(
+              self(),
+              {:salesforce_select_contact, credential, contact_id, socket.assigns.meeting}
+            )
+
+            {:noreply,
+             socket
+             |> assign(:salesforce_search_error, nil)
+             |> assign(:salesforce_dropdown_open, false)
+             |> assign(:salesforce_query, "")
+             |> assign(:salesforce_suggestions, [])
+             |> assign(:salesforce_selected_count, 0)
+             |> assign(:salesforce_selecting_contact, true)
+             |> assign(:salesforce_selecting_contact_id, contact_id)
+             |> assign(:salesforce_suggestions_loading, true)}
+
+          {:error, retry_after_ms} when is_integer(retry_after_ms) ->
+            retry_after_seconds = max(1, ceil(retry_after_ms / 1000))
+
+            {:noreply,
+             assign(
+               socket,
+               :salesforce_search_error,
+               "Too many suggestion requests. Try again in #{retry_after_seconds} seconds."
+             )}
+        end
     end
   end
 
@@ -362,21 +383,75 @@ defmodule SocialScribeWeb.MeetingLive.Show do
           |> Enum.filter(& &1.apply)
           |> Enum.map(fn s -> %{field: s.field, new_value: s.new_value, apply: true} end)
 
-        if Enum.empty?(updates_list) do
-          {:noreply,
-           assign(socket, :salesforce_search_error, "Select at least one field to update.")}
-        else
-          send(
-            self(),
-            {:apply_salesforce_updates, credential, selected_contact.id, updates_list,
-             socket.assigns.meeting}
-          )
+        cond do
+          Enum.empty?(updates_list) ->
+            {:noreply,
+             assign(socket, :salesforce_search_error, "Select at least one field to update.")}
 
-          {:noreply,
-           socket
-           |> assign(:salesforce_suggestions, suggestions_with_values)
-           |> assign(:salesforce_updating, true)
-           |> assign(:salesforce_search_error, nil)}
+          true ->
+            updates_map =
+              updates_list
+              |> Enum.reduce(%{}, fn update, acc ->
+                Map.put(acc, update.field, update.new_value)
+              end)
+
+            with :ok <- rate_limit(socket, :crm_update),
+                 {:ok, _sanitized_updates} <-
+                   InputGuard.sanitize_crm_updates(updates_map, SalesforceFields.allowed_fields()) do
+              send(
+                self(),
+                {:apply_salesforce_updates, credential, selected_contact.id, updates_list,
+                 socket.assigns.meeting}
+              )
+
+              {:noreply,
+               socket
+               |> assign(:salesforce_suggestions, suggestions_with_values)
+               |> assign(:salesforce_updating, true)
+               |> assign(:salesforce_search_error, nil)}
+            else
+              {:error, retry_after_ms} when is_integer(retry_after_ms) ->
+                retry_after_seconds = max(1, ceil(retry_after_ms / 1000))
+
+                {:noreply,
+                 assign(
+                   socket,
+                   :salesforce_search_error,
+                   "Too many update requests. Try again in #{retry_after_seconds} seconds."
+                 )}
+
+              {:error, {:unknown_fields, _fields}} ->
+                {:noreply,
+                 assign(
+                   socket,
+                   :salesforce_search_error,
+                   "Some selected fields are not allowed for Salesforce updates."
+                 )}
+
+              {:error, {:too_many_fields, max_fields}} ->
+                {:noreply,
+                 assign(
+                   socket,
+                   :salesforce_search_error,
+                   "Too many fields selected. Limit is #{max_fields} fields per update."
+                 )}
+
+              {:error, {:value_too_long, field, max_chars}} ->
+                {:noreply,
+                 assign(
+                   socket,
+                   :salesforce_search_error,
+                   "Value for #{field} is too long (max #{max_chars} characters)."
+                 )}
+
+              {:error, :invalid_chars} ->
+                {:noreply,
+                 assign(
+                   socket,
+                   :salesforce_search_error,
+                   "Update contains invalid characters."
+                 )}
+            end
         end
     end
   end
@@ -394,7 +469,7 @@ defmodule SocialScribeWeb.MeetingLive.Show do
       {:error, reason} ->
         send_update(SocialScribeWeb.MeetingLive.HubspotModalComponent,
           id: "hubspot-modal",
-          error: "Failed to search contacts: #{inspect(reason)}",
+          error: format_hubspot_error(reason),
           searching: false
         )
     end
@@ -573,7 +648,7 @@ defmodule SocialScribeWeb.MeetingLive.Show do
       {:error, reason} ->
         send_update(SocialScribeWeb.MeetingLive.HubspotModalComponent,
           id: "hubspot-modal",
-          error: "Failed to update contact: #{inspect(reason)}",
+          error: format_hubspot_update_error(reason),
           loading: false
         )
 
@@ -597,14 +672,49 @@ defmodule SocialScribeWeb.MeetingLive.Show do
   defp format_salesforce_error({:api_error, _status, _body}),
     do: "Failed to search Salesforce contacts."
 
+  defp format_salesforce_error({:invalid_input, {:too_long, max}}),
+    do: "Search query is too long. Maximum #{max} characters."
+
+  defp format_salesforce_error({:invalid_input, :invalid_chars}),
+    do: "Search query contains invalid characters."
+
+  defp format_salesforce_error({:upstream_unavailable, :econnrefused}),
+    do: "Cannot reach Salesforce API. Check SALESFORCE_SITE and try again."
+
+  defp format_salesforce_error({:upstream_timeout, _reason}),
+    do: "Network error while contacting Salesforce. Please try again."
+
+  defp format_salesforce_error({:upstream_unavailable, _reason}),
+    do: "Network error while contacting Salesforce. Please try again."
+
   defp format_salesforce_error({:http_error, :econnrefused}),
     do: "Cannot reach Salesforce API. Check SALESFORCE_SITE and try again."
+
+  defp format_salesforce_error({:http_error, :timeout}),
+    do: "Network error while contacting Salesforce. Please try again."
 
   defp format_salesforce_error({:http_error, _reason}),
     do: "Network error while contacting Salesforce. Please try again."
 
   defp format_salesforce_error(_reason),
     do: "Failed to search Salesforce contacts."
+
+  defp format_hubspot_error({:invalid_input, {:too_long, max}}),
+    do: "Search query is too long. Maximum #{max} characters."
+
+  defp format_hubspot_error({:invalid_input, :invalid_chars}),
+    do: "Search query contains invalid characters."
+
+  defp format_hubspot_error({:upstream_timeout, _}),
+    do: "HubSpot request timed out. Please try again."
+
+  defp format_hubspot_error({:upstream_unavailable, _}),
+    do: "Network error while contacting HubSpot. Please try again."
+
+  defp format_hubspot_error({:api_error, _status, _body}),
+    do: "Failed to search contacts."
+
+  defp format_hubspot_error(_), do: "Failed to search HubSpot contacts."
 
   defp format_salesforce_suggestions_error({:api_error, 429, _body}),
     do: "Gemini quota exceeded. Enable billing or wait for quota reset, then try again."
@@ -621,14 +731,52 @@ defmodule SocialScribeWeb.MeetingLive.Show do
   defp format_salesforce_update_error({:api_error, 401, body}),
     do: format_salesforce_error({:api_error, 401, body})
 
+  defp format_salesforce_update_error({:invalid_input, {:too_many_fields, max_fields}}),
+    do: "Too many fields selected. Limit is #{max_fields}."
+
+  defp format_salesforce_update_error({:invalid_input, {:value_too_long, field, max_chars}}),
+    do: "Value for #{field} is too long (max #{max_chars} characters)."
+
+  defp format_salesforce_update_error({:invalid_input, {:unknown_fields, _fields}}),
+    do: "One or more selected fields are not allowed for Salesforce updates."
+
   defp format_salesforce_update_error({:api_error, _status, _body}),
     do: "Failed to update Salesforce contact."
+
+  defp format_salesforce_update_error({:upstream_timeout, _reason}),
+    do: "Salesforce request timed out. Please try again."
+
+  defp format_salesforce_update_error({:upstream_unavailable, _reason}),
+    do: "Network error while updating Salesforce. Please try again."
+
+  defp format_salesforce_update_error({:http_error, :timeout}),
+    do: "Salesforce request timed out. Please try again."
 
   defp format_salesforce_update_error({:http_error, _reason}),
     do: "Network error while updating Salesforce. Please try again."
 
   defp format_salesforce_update_error(_reason),
     do: "Failed to update Salesforce contact."
+
+  defp format_hubspot_update_error({:invalid_input, {:unknown_fields, _fields}}),
+    do: "One or more selected fields are not allowed for HubSpot updates."
+
+  defp format_hubspot_update_error({:invalid_input, {:too_many_fields, max_fields}}),
+    do: "Too many fields selected. Limit is #{max_fields}."
+
+  defp format_hubspot_update_error({:invalid_input, {:value_too_long, field, max_chars}}),
+    do: "Value for #{field} is too long (max #{max_chars} characters)."
+
+  defp format_hubspot_update_error({:upstream_timeout, _}),
+    do: "HubSpot request timed out. Please try again."
+
+  defp format_hubspot_update_error({:upstream_unavailable, _}),
+    do: "Network error while updating HubSpot. Please try again."
+
+  defp format_hubspot_update_error({:api_error, _status, _body}),
+    do: "HubSpot API rejected the update."
+
+  defp format_hubspot_update_error(_), do: "Failed to update HubSpot contact."
 
   defp salesforce_invalid_session?(body) when is_list(body) do
     Enum.any?(body, fn
@@ -674,17 +822,64 @@ defmodule SocialScribeWeb.MeetingLive.Show do
          |> assign(:salesforce_searching, false)
          |> assign(:salesforce_dropdown_open, false)}
 
-      String.length(query) < 3 ->
-        {:noreply,
-         socket
-         |> assign(:salesforce_contacts, [])
-         |> assign(:salesforce_searching, false)
-         |> assign(:salesforce_dropdown_open, true)
-         |> assign(:salesforce_search_error, "Enter at least 3 characters to search.")}
-
       true ->
-        send(self(), {:salesforce_search_contacts, credential, query})
-        {:noreply, socket}
+        with {:ok, validated_query} <- InputGuard.validate_crm_search_query(query, min_len: 3),
+             :ok <- rate_limit(socket, :crm_search) do
+          send(self(), {:salesforce_search_contacts, credential, validated_query})
+          {:noreply, socket}
+        else
+          {:error, {:too_short, min_len}} ->
+            {:noreply,
+             socket
+             |> assign(:salesforce_contacts, [])
+             |> assign(:salesforce_searching, false)
+             |> assign(:salesforce_dropdown_open, true)
+             |> assign(
+               :salesforce_search_error,
+               "Enter at least #{min_len} characters to search."
+             )}
+
+          {:error, {:too_long, max_len}} ->
+            {:noreply,
+             socket
+             |> assign(:salesforce_contacts, [])
+             |> assign(:salesforce_searching, false)
+             |> assign(:salesforce_dropdown_open, true)
+             |> assign(
+               :salesforce_search_error,
+               "Search query is too long. Maximum #{max_len} characters."
+             )}
+
+          {:error, :invalid_chars} ->
+            {:noreply,
+             socket
+             |> assign(:salesforce_contacts, [])
+             |> assign(:salesforce_searching, false)
+             |> assign(:salesforce_dropdown_open, true)
+             |> assign(:salesforce_search_error, "Search query contains invalid characters.")}
+
+          {:error, retry_after_ms} when is_integer(retry_after_ms) ->
+            retry_after_seconds = max(1, ceil(retry_after_ms / 1000))
+
+            {:noreply,
+             socket
+             |> assign(:salesforce_contacts, [])
+             |> assign(:salesforce_searching, false)
+             |> assign(:salesforce_dropdown_open, true)
+             |> assign(
+               :salesforce_search_error,
+               "Too many search requests. Try again in #{retry_after_seconds} seconds."
+             )}
+        end
+    end
+  end
+
+  defp rate_limit(socket, action) do
+    actor_key = "user:#{socket.assigns.current_user.id}:#{action}"
+
+    case RateLimiter.allow(action, actor_key) do
+      :ok -> :ok
+      {:error, retry_after_ms} when is_integer(retry_after_ms) -> {:error, retry_after_ms}
     end
   end
 

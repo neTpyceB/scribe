@@ -1,4 +1,5 @@
 defmodule SocialScribe.LinkedIn do
+  alias SocialScribe.Limits
   require Logger
 
   @behaviour SocialScribe.LinkedInApi
@@ -37,16 +38,30 @@ defmodule SocialScribe.LinkedIn do
 
       {:error, reason} ->
         Logger.error("LinkedIn HTTP Error: #{inspect(reason)}")
-        {:error, {:http_error, reason}}
+        {:error, {:upstream_unavailable, reason}}
     end
   end
 
   defp client(token) do
+    recv_timeout = Limits.http(:default_recv_timeout_ms)
+
     Tesla.client([
       {Tesla.Middleware.BaseUrl, @linkedin_api_base_url},
+      {Tesla.Middleware.Retry,
+       max_retries: Limits.http(:retry_attempts),
+       delay: Limits.http(:retry_backoff_base_ms),
+       max_delay: Limits.http(:retry_backoff_max_ms),
+       should_retry: &should_retry?/3},
+      {Tesla.Middleware.Timeout, timeout: recv_timeout},
       {Tesla.Middleware.Headers,
        [{"Authorization", "Bearer #{token}"}, {"X-Restli-Protocol-Version", "2.0.0"}]},
       Tesla.Middleware.JSON
     ])
   end
+
+  defp should_retry?({:ok, %{status: status}}, _env, _ctx) when status in [408, 429], do: true
+  defp should_retry?({:ok, %{status: status}}, _env, _ctx) when status >= 500, do: true
+  defp should_retry?({:error, :timeout}, _env, _ctx), do: true
+  defp should_retry?({:error, :econnrefused}, _env, _ctx), do: true
+  defp should_retry?(_, _, _), do: false
 end

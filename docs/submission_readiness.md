@@ -37,11 +37,15 @@ Single source of truth for what is completed and ready to submit for the challen
 13. LinkedIn OAuth integration configured and verified (local + deployment configuration updated).
 14. Settings page now supports one-click disconnect for all connected OAuth providers (Google, HubSpot, Salesforce, Facebook, LinkedIn).
 15. Facebook OAuth scope handling is now runtime-configurable (`FACEBOOK_OAUTH_SCOPE`) to support staged Meta permission rollout.
+16. Security/performance hardening implemented: centralized runtime limits, server-side rate limiting, strict input bounds, CRM field allowlists, and standardized upstream timeout/unavailable error mapping.
+17. External API client resilience improved with shared timeout/retry defaults (Gemini/HubSpot/Salesforce/Recall/Google/Facebook/LinkedIn).
+18. Settings now show selected Facebook page identity (name + page ID) for operator clarity.
 
 ## Test Status
-1. Full Docker test suite: green at last full-run checkpoint (see `docs/challenge_execution_plan.md` progress history).
+1. Full Docker test suite: green (`12 properties, 283 tests, 0 failures`).
 2. Salesforce LiveView flow tests: passing.
 3. Salesforce suggestions unit tests: passing.
+4. Rate limiter and input guard boundary tests: passing.
 
 ## Optional / Showcase Integrations
 1. LinkedIn OAuth setup and connection flow: `DONE`

@@ -3,6 +3,10 @@ defmodule SocialScribeWeb.MeetingLive.HubspotModalComponent do
 
   import SocialScribeWeb.ModalComponents
 
+  alias SocialScribe.HubspotApi
+  alias SocialScribe.InputGuard
+  alias SocialScribe.RateLimiter
+
   @impl true
   def render(assigns) do
     assigns = assign(assigns, :patch, ~p"/dashboard/meetings/#{assigns.meeting}")
@@ -11,7 +15,9 @@ defmodule SocialScribeWeb.MeetingLive.HubspotModalComponent do
     ~H"""
     <div class="space-y-6">
       <div>
-        <h2 id={"#{@modal_id}-title"} class="text-xl font-medium tracking-tight text-slate-900">Update in HubSpot</h2>
+        <h2 id={"#{@modal_id}-title"} class="text-xl font-medium tracking-tight text-slate-900">
+          Update in HubSpot
+        </h2>
         <p id={"#{@modal_id}-description"} class="mt-2 text-base font-light leading-7 text-slate-500">
           Here are suggested updates to sync with your integrations based on this
           <span class="block">meeting</span>
@@ -19,14 +25,14 @@ defmodule SocialScribeWeb.MeetingLive.HubspotModalComponent do
       </div>
 
       <.contact_select
-          selected_contact={@selected_contact}
-          contacts={@contacts}
-          loading={@searching}
-          open={@dropdown_open}
-          query={@query}
-          target={@myself}
-          error={@error}
-        />
+        selected_contact={@selected_contact}
+        contacts={@contacts}
+        loading={@searching}
+        open={@dropdown_open}
+        query={@query}
+        target={@myself}
+        error={@error}
+      />
 
       <%= if @selected_contact do %>
         <.suggestions_section
@@ -98,11 +104,13 @@ defmodule SocialScribeWeb.MeetingLive.HubspotModalComponent do
       |> assign_new(:searching, fn -> false end)
       |> assign_new(:dropdown_open, fn -> false end)
       |> assign_new(:error, fn -> nil end)
+      |> assign_new(:current_user_id, fn -> nil end)
 
     {:ok, socket}
   end
 
-  defp maybe_select_all_suggestions(socket, %{suggestions: suggestions}) when is_list(suggestions) do
+  defp maybe_select_all_suggestions(socket, %{suggestions: suggestions})
+       when is_list(suggestions) do
     assign(socket, suggestions: Enum.map(suggestions, &Map.put(&1, :apply, true)))
   end
 
@@ -110,14 +118,64 @@ defmodule SocialScribeWeb.MeetingLive.HubspotModalComponent do
 
   @impl true
   def handle_event("contact_search", %{"value" => query}, socket) do
-    query = String.trim(query)
+    query = String.trim(query || "")
 
-    if String.length(query) >= 2 do
-      socket = assign(socket, searching: true, error: nil, query: query, dropdown_open: true)
-      send(self(), {:hubspot_search, query, socket.assigns.credential})
-      {:noreply, socket}
-    else
-      {:noreply, assign(socket, query: query, contacts: [], dropdown_open: query != "")}
+    case InputGuard.validate_crm_search_query(query, min_len: 2) do
+      {:ok, validated_query} when validated_query == "" ->
+        {:noreply, assign(socket, query: "", contacts: [], dropdown_open: false, error: nil)}
+
+      {:ok, validated_query} ->
+        case rate_limit(socket, :crm_search) do
+          :ok ->
+            socket =
+              assign(socket,
+                searching: true,
+                error: nil,
+                query: validated_query,
+                dropdown_open: true
+              )
+
+            send(self(), {:hubspot_search, validated_query, socket.assigns.credential})
+            {:noreply, socket}
+
+          {:error, retry_after_ms} when is_integer(retry_after_ms) ->
+            retry_after_seconds = max(1, ceil(retry_after_ms / 1000))
+
+            {:noreply,
+             assign(
+               socket,
+               error: "Too many HubSpot searches. Try again in #{retry_after_seconds} seconds.",
+               searching: false,
+               dropdown_open: true
+             )}
+        end
+
+      {:error, {:too_short, min_len}} ->
+        {:noreply,
+         assign(socket,
+           query: query,
+           contacts: [],
+           dropdown_open: query != "",
+           error: "Enter at least #{min_len} characters to search."
+         )}
+
+      {:error, {:too_long, max_len}} ->
+        {:noreply,
+         assign(socket,
+           contacts: [],
+           searching: false,
+           dropdown_open: true,
+           error: "Search query is too long. Maximum #{max_len} characters."
+         )}
+
+      {:error, :invalid_chars} ->
+        {:noreply,
+         assign(socket,
+           contacts: [],
+           searching: false,
+           dropdown_open: true,
+           error: "Search query contains invalid characters."
+         )}
     end
   end
 
@@ -136,9 +194,11 @@ defmodule SocialScribeWeb.MeetingLive.HubspotModalComponent do
     if socket.assigns.dropdown_open do
       {:noreply, assign(socket, dropdown_open: false)}
     else
-      # When opening dropdown with selected contact, search for similar contacts
       socket = assign(socket, dropdown_open: true, searching: true)
-      query = "#{socket.assigns.selected_contact.firstname} #{socket.assigns.selected_contact.lastname}"
+
+      query =
+        "#{socket.assigns.selected_contact.firstname} #{socket.assigns.selected_contact.lastname}"
+
       send(self(), {:hubspot_search, query, socket.assigns.credential})
       {:noreply, socket}
     end
@@ -149,16 +209,34 @@ defmodule SocialScribeWeb.MeetingLive.HubspotModalComponent do
     contact = Enum.find(socket.assigns.contacts, &(&1.id == contact_id))
 
     if contact do
-      socket = assign(socket,
-        loading: true,
-        selected_contact: contact,
-        error: nil,
-        dropdown_open: false,
-        query: "",
-        suggestions: []
-      )
-      send(self(), {:generate_suggestions, contact, socket.assigns.meeting, socket.assigns.credential})
-      {:noreply, socket}
+      case rate_limit(socket, :ai_suggestions) do
+        :ok ->
+          socket =
+            assign(socket,
+              loading: true,
+              selected_contact: contact,
+              error: nil,
+              dropdown_open: false,
+              query: "",
+              suggestions: []
+            )
+
+          send(
+            self(),
+            {:generate_suggestions, contact, socket.assigns.meeting, socket.assigns.credential}
+          )
+
+          {:noreply, socket}
+
+        {:error, retry_after_ms} when is_integer(retry_after_ms) ->
+          retry_after_seconds = max(1, ceil(retry_after_ms / 1000))
+
+          {:noreply,
+           assign(
+             socket,
+             error: "Too many suggestion requests. Try again in #{retry_after_seconds} seconds."
+           )}
+      end
     else
       {:noreply, assign(socket, error: "Contact not found")}
     end
@@ -204,8 +282,6 @@ defmodule SocialScribeWeb.MeetingLive.HubspotModalComponent do
 
   @impl true
   def handle_event("apply_updates", %{"apply" => selected, "values" => values}, socket) do
-    socket = assign(socket, loading: true, error: nil)
-
     updates =
       selected
       |> Map.keys()
@@ -213,12 +289,65 @@ defmodule SocialScribeWeb.MeetingLive.HubspotModalComponent do
         Map.put(acc, field, Map.get(values, field, ""))
       end)
 
-    send(self(), {:apply_hubspot_updates, updates, socket.assigns.selected_contact, socket.assigns.credential})
-    {:noreply, socket}
+    with :ok <- rate_limit(socket, :crm_update),
+         {:ok, sanitized_updates} <-
+           InputGuard.sanitize_crm_updates(updates, HubspotApi.allowed_update_fields()) do
+      socket = assign(socket, loading: true, error: nil)
+
+      send(
+        self(),
+        {:apply_hubspot_updates, sanitized_updates, socket.assigns.selected_contact,
+         socket.assigns.credential}
+      )
+
+      {:noreply, socket}
+    else
+      {:error, retry_after_ms} when is_integer(retry_after_ms) ->
+        retry_after_seconds = max(1, ceil(retry_after_ms / 1000))
+
+        {:noreply,
+         assign(
+           socket,
+           loading: false,
+           error: "Too many update requests. Try again in #{retry_after_seconds} seconds."
+         )}
+
+      {:error, {:unknown_fields, _fields}} ->
+        {:noreply,
+         assign(socket, loading: false, error: "One or more selected fields are not allowed.")}
+
+      {:error, {:too_many_fields, max_fields}} ->
+        {:noreply,
+         assign(socket,
+           loading: false,
+           error: "Too many fields selected. Limit is #{max_fields}."
+         )}
+
+      {:error, {:value_too_long, field, max_chars}} ->
+        {:noreply,
+         assign(
+           socket,
+           loading: false,
+           error: "Value for #{field} is too long (max #{max_chars} characters)."
+         )}
+
+      {:error, :invalid_chars} ->
+        {:noreply, assign(socket, loading: false, error: "Update contains invalid characters.")}
+    end
   end
 
   @impl true
   def handle_event("apply_updates", _params, socket) do
     {:noreply, assign(socket, error: "Please select at least one field to update")}
+  end
+
+  defp rate_limit(socket, action) do
+    actor =
+      case socket.assigns.current_user_id do
+        id when is_integer(id) -> "user:#{id}"
+        _ -> "anon:hubspot_modal"
+      end
+
+    RateLimiter.allow(action, "#{actor}:#{action}")
   end
 end

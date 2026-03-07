@@ -13,6 +13,13 @@ defmodule SocialScribeWeb.UserSettingsLive do
     linkedin_accounts = Accounts.list_user_credentials(current_user, provider: "linkedin")
 
     facebook_accounts = Accounts.list_user_credentials(current_user, provider: "facebook")
+    selected_facebook_page = Accounts.get_user_selected_facebook_page_credential(current_user)
+
+    selected_facebook_pages_by_credential =
+      case selected_facebook_page do
+        nil -> %{}
+        page -> %{page.user_credential_id => page}
+      end
 
     hubspot_accounts = Accounts.list_user_credentials(current_user, provider: "hubspot")
     salesforce_accounts = Accounts.list_user_credentials(current_user, provider: "salesforce")
@@ -28,6 +35,8 @@ defmodule SocialScribeWeb.UserSettingsLive do
       |> assign(:google_accounts, google_accounts)
       |> assign(:linkedin_accounts, linkedin_accounts)
       |> assign(:facebook_accounts, facebook_accounts)
+      |> assign(:selected_facebook_page, selected_facebook_page)
+      |> assign(:selected_facebook_pages_by_credential, selected_facebook_pages_by_credential)
       |> assign(:hubspot_accounts, hubspot_accounts)
       |> assign(:salesforce_accounts, salesforce_accounts)
       |> assign(:user_bot_preference, user_bot_preference)
@@ -126,7 +135,12 @@ defmodule SocialScribeWeb.UserSettingsLive do
              |> put_flash(:info, "#{provider_label(provider)} account disconnected successfully.")}
 
           {:error, _changeset} ->
-            {:noreply, put_flash(socket, :error, "Failed to disconnect #{provider_label(provider)} account.")}
+            {:noreply,
+             put_flash(
+               socket,
+               :error,
+               "Failed to disconnect #{provider_label(provider)} account."
+             )}
         end
     end
   end
