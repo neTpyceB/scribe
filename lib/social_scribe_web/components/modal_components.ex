@@ -33,10 +33,17 @@ defmodule SocialScribeWeb.ModalComponents do
   attr :target, :any, default: nil
   attr :error, :string, default: nil
   attr :id, :string, default: "contact-select"
+  attr :search_event, :string, default: "contact_search"
+  attr :open_event, :string, default: "open_contact_dropdown"
+  attr :close_event, :string, default: "close_contact_dropdown"
+  attr :toggle_event, :string, default: "toggle_contact_dropdown"
+  attr :select_event, :string, default: "select_contact"
+  attr :clear_event, :string, default: "clear_contact"
+  attr :result_id_prefix, :string, default: nil
 
   def contact_select(assigns) do
     ~H"""
-    <div class="space-y-1">
+    <div id={@id} class="space-y-1">
       <label for={"#{@id}-input"} class="block text-sm font-medium text-slate-700">
         Select Contact
       </label>
@@ -44,7 +51,7 @@ defmodule SocialScribeWeb.ModalComponents do
         <%= if @selected_contact do %>
           <button
             type="button"
-            phx-click="toggle_contact_dropdown"
+            phx-click={@toggle_event}
             phx-target={@target}
             role="combobox"
             aria-haspopup="listbox"
@@ -54,12 +61,12 @@ defmodule SocialScribeWeb.ModalComponents do
           >
             <span class="flex items-center">
               <.avatar
-                firstname={@selected_contact.firstname}
-                lastname={@selected_contact.lastname}
+                firstname={contact_firstname(@selected_contact)}
+                lastname={contact_lastname(@selected_contact)}
                 size={:sm}
               />
               <span class="ml-1.5 block truncate text-slate-900">
-                {@selected_contact.firstname} {@selected_contact.lastname}
+                {contact_display_name(@selected_contact)}
               </span>
             </span>
             <span class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
@@ -74,9 +81,9 @@ defmodule SocialScribeWeb.ModalComponents do
               name="contact_query"
               value={@query}
               placeholder="Search contacts..."
-              phx-keyup="contact_search"
+              phx-keyup={@search_event}
               phx-target={@target}
-              phx-focus="open_contact_dropdown"
+              phx-focus={@open_event}
               phx-debounce="150"
               autocomplete="off"
               role="combobox"
@@ -99,14 +106,14 @@ defmodule SocialScribeWeb.ModalComponents do
           :if={@open && (@selected_contact || Enum.any?(@contacts) || @loading || @query != "")}
           id={"#{@id}-listbox"}
           role="listbox"
-          phx-click-away="close_contact_dropdown"
+          phx-click-away={@close_event}
           phx-target={@target}
           class="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm"
         >
           <button
             :if={@selected_contact}
             type="button"
-            phx-click="clear_contact"
+            phx-click={@clear_event}
             phx-target={@target}
             role="option"
             aria-selected="false"
@@ -114,40 +121,99 @@ defmodule SocialScribeWeb.ModalComponents do
           >
             Clear selection
           </button>
-          <div :if={@loading} class="px-4 py-2 text-sm text-gray-500">
+          <div :if={@loading} id={"#{@id}-loading"} class="px-4 py-2 text-sm text-gray-500">
             Searching...
           </div>
           <div
-            :if={!@loading && Enum.empty?(@contacts) && @query != ""}
+            :if={!@loading && @error}
+            id={"#{@id}-error-inline"}
+            class="px-4 py-2 text-sm text-red-600"
+          >
+            {@error}
+          </div>
+          <div
+            :if={!@loading && Enum.empty?(@contacts) && @query != "" && !@error}
+            id={"#{@id}-empty"}
             class="px-4 py-2 text-sm text-gray-500"
           >
             No contacts found
           </div>
           <button
             :for={contact <- @contacts}
+            id={if @result_id_prefix, do: "#{@result_id_prefix}-#{contact.id}", else: nil}
             type="button"
-            phx-click="select_contact"
+            phx-click={@select_event}
             phx-value-id={contact.id}
             phx-target={@target}
             role="option"
             aria-selected="false"
             class="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center space-x-3 cursor-pointer"
           >
-            <.avatar firstname={contact.firstname} lastname={contact.lastname} size={:sm} />
+            <.avatar
+              firstname={contact_firstname(contact)}
+              lastname={contact_lastname(contact)}
+              size={:sm}
+            />
             <div>
               <div class="text-sm font-medium text-slate-900">
-                {contact.firstname} {contact.lastname}
+                {contact_display_name(contact)}
               </div>
               <div class="text-xs text-slate-500">
-                {contact.email}
+                {contact_email(contact)}
               </div>
             </div>
           </button>
         </div>
       </div>
-      <.inline_error :if={@error} message={@error} />
+      <p :if={@error} id={"#{@id}-error"} class="text-red-600 text-sm">{@error}</p>
     </div>
     """
+  end
+
+  defp contact_display_name(contact) do
+    from_name =
+      [Map.get(contact, :firstname), Map.get(contact, :lastname)]
+      |> Enum.filter(&is_binary/1)
+      |> Enum.join(" ")
+      |> String.trim()
+
+    cond do
+      from_name != "" ->
+        from_name
+
+      is_binary(Map.get(contact, :display_name)) &&
+          String.trim(Map.get(contact, :display_name)) != "" ->
+        String.trim(Map.get(contact, :display_name))
+
+      is_binary(Map.get(contact, "display_name")) &&
+          String.trim(Map.get(contact, "display_name")) != "" ->
+        String.trim(Map.get(contact, "display_name"))
+
+      true ->
+        Map.get(contact, :email) || Map.get(contact, "email") || Map.get(contact, :id) ||
+          Map.get(contact, "id") || "Unknown Contact"
+    end
+  end
+
+  defp contact_firstname(contact) do
+    Map.get(contact, :firstname) || Map.get(contact, "firstname") ||
+      initials_source_part(contact, 0)
+  end
+
+  defp contact_lastname(contact) do
+    Map.get(contact, :lastname) || Map.get(contact, "lastname") ||
+      initials_source_part(contact, 1)
+  end
+
+  defp contact_email(contact) do
+    Map.get(contact, :email) || Map.get(contact, "email") || "No email"
+  end
+
+  defp initials_source_part(contact, idx) do
+    contact
+    |> contact_display_name()
+    |> String.split(" ", parts: 2)
+    |> Enum.at(idx, "")
   end
 
   @doc """

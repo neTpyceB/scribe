@@ -52,6 +52,8 @@ Deliver a complete, production-style submission for the Scribe challenge that is
 44. Expanded Salesforce modal regression coverage for hard update paths (missing selected contact, edited-value submit payload, post-update contact-reload failure) and re-verified full Docker test suite (`12 properties, 264 tests, 0 failures`).
 45. Clarified challenge-scope integrations in docs: hard-required vs optional providers, plus final hard-requirement smoke checklist for submission readiness.
 46. Implemented Salesforce `Update mapping` flow end-to-end: per-user persisted source→target field mappings, mapping editor UI from suggestion cards, mapped suggestion regeneration, and regression tests; full suite green (`12 properties, 267 tests, 0 failures`).
+47. Aligned Salesforce contact search UX with HubSpot selector pattern (typing-based dropdown search, no separate submit flow), while preserving Salesforce safety guardrails (min query length, capped results, narrowing notice); full suite green (`12 properties, 268 tests, 0 failures`).
+48. Added evaluator-facing submission status document (`docs/submission_readiness.md`) with completed hard-requirement checklist, Salesforce scope summary, test status, and final pre-submission checks.
 
 ### In Progress
 1. Step 8: Finalize docs and verification.
@@ -70,6 +72,11 @@ Deliver a complete, production-style submission for the Scribe challenge that is
    - auth/session/oauth abuse-path checks
    - dependency/vulnerability scan
    - architecture/failure-mode review (timeouts, retries, degraded external APIs)
+4. Deferred optional-integrations setup (post hard-requirements lock):
+   - HubSpot OAuth app/env fix in deployed environment (`Unable to load app information`)
+   - LinkedIn OAuth app/env setup (`client_id` missing)
+   - Facebook OAuth app/env setup (`Invalid App ID`)
+   - Validate Settings page can connect all listed providers end-to-end for demo/showcase.
 
 ## Salesforce Modal Atomic Plan
 

@@ -122,6 +122,9 @@
           phx-click="open_salesforce_review"
           class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors"
         >
+          <svg class="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M17.3 10.4c-.3 0-.7 0-1 .1-.8-2.4-3-4.1-5.6-4.1-2.9 0-5.4 2.2-5.8 5.1-2.2.2-3.9 2-3.9 4.2 0 2.3 1.9 4.2 4.2 4.2h12c2.6 0 4.7-2.1 4.7-4.7 0-2.6-2-4.8-4.6-4.8z" />
+          </svg>
           Review Salesforce Updates
         </button>
       </div>
@@ -198,39 +201,22 @@
     <h3 class="text-xl font-semibold text-slate-800">Salesforce Contact Review</h3>
     <p class="text-sm text-slate-600">Search and select a Salesforce contact for this meeting.</p>
 
-    <.simple_form
-      id="salesforce-contact-search-form"
-      for={@salesforce_search_form}
-      phx-submit="salesforce_contact_search"
-    >
-      <.input
-        field={@salesforce_search_form[:query]}
-        type="text"
-        label="Find Salesforce Contact"
-        placeholder="Search by name, email, phone, or ID"
-      />
-      <:actions>
-        <.button
-          type="submit"
-          class="bg-blue-600 hover:bg-blue-700"
-          disabled={@salesforce_searching}
-        >
-          <%= if @salesforce_searching do %>
-            Searching...
-          <% else %>
-            Search
-          <% end %>
-        </.button>
-      </:actions>
-    </.simple_form>
-
-    <p :if={@salesforce_searching} id="salesforce-search-loading" class="text-sm text-slate-500">
-      Searching Salesforce contacts...
-    </p>
-
-    <p :if={@salesforce_search_error} id="salesforce-search-error" class="text-sm text-red-600">
-      {@salesforce_search_error}
-    </p>
+    <.contact_select
+      id="salesforce-contact-select"
+      selected_contact={@salesforce_selected_contact}
+      contacts={@salesforce_contacts}
+      loading={@salesforce_searching}
+      open={@salesforce_dropdown_open}
+      query={@salesforce_query}
+      error={@salesforce_search_error}
+      search_event="salesforce_contact_search_input"
+      open_event="open_salesforce_contact_dropdown"
+      close_event="close_salesforce_contact_dropdown"
+      toggle_event="toggle_salesforce_contact_dropdown"
+      select_event="select_salesforce_contact"
+      clear_event="clear_salesforce_contact"
+      result_id_prefix="salesforce-contact-result"
+    />
 
     <p
       :if={@salesforce_search_notice}
@@ -239,37 +225,6 @@
     >
       {@salesforce_search_notice}
     </p>
-
-    <p
-      :if={
-        @salesforce_search_attempted && Enum.empty?(@salesforce_contacts) &&
-          !@salesforce_search_error
-      }
-      id="salesforce-search-empty"
-      class="text-sm text-slate-500"
-    >
-      No Salesforce contacts found.
-    </p>
-
-    <div :if={Enum.any?(@salesforce_contacts)} id="salesforce-search-results" class="space-y-2">
-      <h4 class="text-sm font-medium text-slate-700">Search Results</h4>
-      <div class="max-h-56 overflow-y-auto rounded-md border border-slate-200 divide-y divide-slate-100">
-        <button
-          :for={contact <- @salesforce_contacts}
-          id={"salesforce-contact-result-#{contact.id}"}
-          type="button"
-          phx-click="select_salesforce_contact"
-          phx-value-id={contact.id}
-          disabled={@salesforce_selecting_contact || @salesforce_searching}
-          class="w-full px-3 py-2 text-left hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          <p class="text-sm font-medium text-slate-800">
-            {contact.display_name || contact.email || contact.id}
-          </p>
-          <p class="text-xs text-slate-500">{contact.email || "No email"} · {contact.id}</p>
-        </button>
-      </div>
-    </div>
 
     <div
       :if={@salesforce_selecting_contact}

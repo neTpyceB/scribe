@@ -71,15 +71,43 @@ defmodule SocialScribeWeb.SalesforceEntryTest do
       |> element("button[phx-click='open_salesforce_review']")
       |> render_click()
 
-      view
-      |> form("#salesforce-contact-search-form", %{"salesforce_search" => %{"query" => "Ada"}})
-      |> render_submit()
+      search_salesforce_contacts(view, "Ada")
 
       :timer.sleep(50)
 
-      assert has_element?(view, "#salesforce-search-results")
+      assert has_element?(view, "#salesforce-contact-select-listbox")
       assert has_element?(view, "#salesforce-contact-result-003ABC")
       assert render(view) =~ "Ada Lovelace"
+    end
+
+    test "auto-searches Salesforce contacts while typing", %{conn: conn, meeting: meeting} do
+      SocialScribe.SalesforceApiMock
+      |> expect(:search_contacts, fn _credential, query ->
+        assert query == "Ada"
+
+        {:ok,
+         [
+           %{
+             id: "003AUTO",
+             display_name: "Ada Auto",
+             email: "auto@example.com"
+           }
+         ]}
+      end)
+
+      {:ok, view, _html} = live(conn, ~p"/dashboard/meetings/#{meeting.id}")
+
+      view
+      |> element("button[phx-click='open_salesforce_review']")
+      |> render_click()
+
+      search_salesforce_contacts(view, "Ada")
+
+      :timer.sleep(50)
+
+      assert has_element?(view, "#salesforce-contact-select-listbox")
+      assert has_element?(view, "#salesforce-contact-result-003AUTO")
+      assert render(view) =~ "Ada Auto"
     end
 
     test "shows empty state when Salesforce search has no results", %{
@@ -98,14 +126,12 @@ defmodule SocialScribeWeb.SalesforceEntryTest do
       |> element("button[phx-click='open_salesforce_review']")
       |> render_click()
 
-      view
-      |> form("#salesforce-contact-search-form", %{"salesforce_search" => %{"query" => "NoMatch"}})
-      |> render_submit()
+      search_salesforce_contacts(view, "NoMatch")
 
       :timer.sleep(50)
 
-      assert has_element?(view, "#salesforce-search-empty")
-      assert render(view) =~ "No Salesforce contacts found."
+      assert has_element?(view, "#salesforce-contact-select-empty")
+      assert render(view) =~ "No contacts found"
     end
 
     test "requires at least 3 characters before searching", %{conn: conn, meeting: meeting} do
@@ -115,11 +141,9 @@ defmodule SocialScribeWeb.SalesforceEntryTest do
       |> element("button[phx-click='open_salesforce_review']")
       |> render_click()
 
-      view
-      |> form("#salesforce-contact-search-form", %{"salesforce_search" => %{"query" => "Ad"}})
-      |> render_submit()
+      search_salesforce_contacts(view, "Ad")
 
-      assert has_element?(view, "#salesforce-search-error")
+      assert has_element?(view, "#salesforce-contact-select-error")
       assert render(view) =~ "Enter at least 3 characters to search."
     end
 
@@ -149,9 +173,7 @@ defmodule SocialScribeWeb.SalesforceEntryTest do
       |> element("button[phx-click='open_salesforce_review']")
       |> render_click()
 
-      view
-      |> form("#salesforce-contact-search-form", %{"salesforce_search" => %{"query" => "Many"}})
-      |> render_submit()
+      search_salesforce_contacts(view, "Many")
 
       assert has_element?(view, "#salesforce-search-notice")
 
@@ -211,9 +233,7 @@ defmodule SocialScribeWeb.SalesforceEntryTest do
       |> element("button[phx-click='open_salesforce_review']")
       |> render_click()
 
-      view
-      |> form("#salesforce-contact-search-form", %{"salesforce_search" => %{"query" => "Ada"}})
-      |> render_submit()
+      search_salesforce_contacts(view, "Ada")
 
       :timer.sleep(50)
 
@@ -254,10 +274,7 @@ defmodule SocialScribeWeb.SalesforceEntryTest do
       {:ok, view, _html} = live(conn, ~p"/dashboard/meetings/#{meeting.id}")
 
       view |> element("button[phx-click='open_salesforce_review']") |> render_click()
-
-      view
-      |> form("#salesforce-contact-search-form", %{"salesforce_search" => %{"query" => "Ada"}})
-      |> render_submit()
+      search_salesforce_contacts(view, "Ada")
 
       :timer.sleep(50)
       view |> element("#salesforce-contact-result-003ABC") |> render_click()
@@ -307,10 +324,7 @@ defmodule SocialScribeWeb.SalesforceEntryTest do
       {:ok, view, _html} = live(conn, ~p"/dashboard/meetings/#{meeting.id}")
 
       view |> element("button[phx-click='open_salesforce_review']") |> render_click()
-
-      view
-      |> form("#salesforce-contact-search-form", %{"salesforce_search" => %{"query" => "Ada"}})
-      |> render_submit()
+      search_salesforce_contacts(view, "Ada")
 
       :timer.sleep(50)
       view |> element("#salesforce-contact-result-003ABC") |> render_click()
@@ -358,13 +372,11 @@ defmodule SocialScribeWeb.SalesforceEntryTest do
       |> element("button[phx-click='open_salesforce_review']")
       |> render_click()
 
-      view
-      |> form("#salesforce-contact-search-form", %{"salesforce_search" => %{"query" => "Ada"}})
-      |> render_submit()
+      search_salesforce_contacts(view, "Ada")
 
       :timer.sleep(50)
 
-      assert has_element?(view, "#salesforce-search-error")
+      assert has_element?(view, "#salesforce-contact-select-error")
 
       assert render(view) =~
                "Salesforce session expired. Reconnect Salesforce in Settings and try again."
@@ -409,9 +421,7 @@ defmodule SocialScribeWeb.SalesforceEntryTest do
       |> element("button[phx-click='open_salesforce_review']")
       |> render_click()
 
-      view
-      |> form("#salesforce-contact-search-form", %{"salesforce_search" => %{"query" => "Ada"}})
-      |> render_submit()
+      search_salesforce_contacts(view, "Ada")
 
       :timer.sleep(50)
 
@@ -466,10 +476,7 @@ defmodule SocialScribeWeb.SalesforceEntryTest do
       {:ok, view, _html} = live(conn, ~p"/dashboard/meetings/#{meeting.id}")
 
       view |> element("button[phx-click='open_salesforce_review']") |> render_click()
-
-      view
-      |> form("#salesforce-contact-search-form", %{"salesforce_search" => %{"query" => "Ada"}})
-      |> render_submit()
+      search_salesforce_contacts(view, "Ada")
 
       :timer.sleep(50)
       view |> element("#salesforce-contact-result-003ABC") |> render_click()
@@ -513,10 +520,7 @@ defmodule SocialScribeWeb.SalesforceEntryTest do
       {:ok, view, _html} = live(conn, ~p"/dashboard/meetings/#{meeting.id}")
 
       view |> element("button[phx-click='open_salesforce_review']") |> render_click()
-
-      view
-      |> form("#salesforce-contact-search-form", %{"salesforce_search" => %{"query" => "Ada"}})
-      |> render_submit()
+      search_salesforce_contacts(view, "Ada")
 
       :timer.sleep(50)
       view |> element("#salesforce-contact-result-003ABC") |> render_click()
@@ -577,10 +581,7 @@ defmodule SocialScribeWeb.SalesforceEntryTest do
       {:ok, view, _html} = live(conn, ~p"/dashboard/meetings/#{meeting.id}")
 
       view |> element("button[phx-click='open_salesforce_review']") |> render_click()
-
-      view
-      |> form("#salesforce-contact-search-form", %{"salesforce_search" => %{"query" => "Ada"}})
-      |> render_submit()
+      search_salesforce_contacts(view, "Ada")
 
       :timer.sleep(50)
       view |> element("#salesforce-contact-result-003ABC") |> render_click()
@@ -637,10 +638,7 @@ defmodule SocialScribeWeb.SalesforceEntryTest do
       {:ok, view, _html} = live(conn, ~p"/dashboard/meetings/#{meeting.id}")
 
       view |> element("button[phx-click='open_salesforce_review']") |> render_click()
-
-      view
-      |> form("#salesforce-contact-search-form", %{"salesforce_search" => %{"query" => "Ada"}})
-      |> render_submit()
+      search_salesforce_contacts(view, "Ada")
 
       :timer.sleep(50)
       view |> element("#salesforce-contact-result-003ABC") |> render_click()
@@ -690,10 +688,7 @@ defmodule SocialScribeWeb.SalesforceEntryTest do
       {:ok, view, _html} = live(conn, ~p"/dashboard/meetings/#{meeting.id}")
 
       view |> element("button[phx-click='open_salesforce_review']") |> render_click()
-
-      view
-      |> form("#salesforce-contact-search-form", %{"salesforce_search" => %{"query" => "Ada"}})
-      |> render_submit()
+      search_salesforce_contacts(view, "Ada")
 
       :timer.sleep(50)
       view |> element("#salesforce-contact-result-003ABC") |> render_click()
@@ -754,5 +749,11 @@ defmodule SocialScribeWeb.SalesforceEntryTest do
     })
 
     SocialScribe.Meetings.get_meeting_with_details(meeting.id)
+  end
+
+  defp search_salesforce_contacts(view, query) do
+    view
+    |> element("#salesforce-contact-select-input")
+    |> render_keyup(%{"value" => query})
   end
 end

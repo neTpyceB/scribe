@@ -54,3 +54,27 @@ Track external accounts and OAuth apps needed to pass the challenge without ambi
 9. Salesforce contact search/select works.
 10. Salesforce suggestions generate from transcript.
 11. Salesforce updates apply and are visible in Salesforce.
+
+## HubSpot OAuth Quick Troubleshooting
+1. Symptom: HubSpot shows `Unable to load app information`.
+2. Most common cause: invalid or missing `HUBSPOT_CLIENT_ID` in deployed env.
+3. Verify HubSpot app exists and is enabled in your HubSpot Developer account.
+4. Verify app redirect URLs include:
+   - `http://localhost:4100/auth/hubspot/callback`
+   - `https://scribe.adlerclub.tech/auth/hubspot/callback` (or your production domain)
+5. Verify Railway env vars are set and non-empty:
+   - `HUBSPOT_CLIENT_ID`
+   - `HUBSPOT_CLIENT_SECRET`
+6. Redeploy after env changes.
+
+## Optional OAuth Troubleshooting (LinkedIn/Facebook)
+1. LinkedIn symptom: `You need to pass the "client_id" parameter`.
+2. LinkedIn likely cause: missing or empty `LINKEDIN_CLIENT_ID` in runtime env.
+3. Facebook symptom: `Invalid App ID`.
+4. Facebook likely cause: missing/invalid `FACEBOOK_CLIENT_ID` or wrong app configured.
+5. For both providers, verify redirect URLs in provider app settings:
+   - local: `http://localhost:4100/auth/<provider>/callback`
+   - prod: `https://scribe.adlerclub.tech/auth/<provider>/callback`
+6. Verify Railway env vars are set:
+   - LinkedIn: `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`
+   - Facebook: `FACEBOOK_CLIENT_ID`, `FACEBOOK_CLIENT_SECRET`
