@@ -52,6 +52,9 @@ Detailed setup: [Local Setup](docs/local_setup.md)
 4. On boot, container runs:
    - `/app/bin/migrate` (with retry loop)
    - `/app/bin/server`
+5. Facebook production sanity check:
+   - Open `https://<your-domain>/auth/facebook` and confirm the redirect URL contains the expected `scope` from `FACEBOOK_OAUTH_SCOPE`.
+   - If the URL still shows only `public_profile`, force a fresh Railway rebuild/redeploy from the latest `master` commit.
 
 If Railway Start Command is set to `/app/bin/server`, migrations are skipped and Oban tables will be missing.
 
