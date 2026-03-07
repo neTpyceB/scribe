@@ -30,6 +30,16 @@ defmodule SocialScribe.Accounts do
   end
 
   @doc """
+  Gets a user by email and password.
+  """
+  def get_user_by_email_and_password(email, password)
+      when is_binary(email) and is_binary(password) do
+    user = get_user_by_email(email)
+
+    if User.valid_password?(user, password), do: user
+  end
+
+  @doc """
   Gets a single user.
 
   Raises `Ecto.NoResultsError` if the User does not exist.

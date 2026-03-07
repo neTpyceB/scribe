@@ -10,6 +10,7 @@
 7. [Local Setup](docs/local_setup.md)
 8. [Submission Readiness](docs/submission_readiness.md)
 9. [End-to-End QA Notes](docs/end_to_end_qa_notes.md)
+10. [Security And Architecture Review](docs/security_architecture_review.md)
 
 ## Contributor Sequence
 1. Read `README.md`.

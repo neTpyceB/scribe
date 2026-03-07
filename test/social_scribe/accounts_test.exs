@@ -21,6 +21,25 @@ defmodule SocialScribe.AccountsTest do
     end
   end
 
+  describe "get_user_by_email_and_password/2" do
+    test "returns user when email/password are valid" do
+      attrs = valid_user_attributes()
+      {:ok, user} = Accounts.register_user(attrs)
+
+      assert %User{id: user_id} =
+               Accounts.get_user_by_email_and_password(attrs.email, attrs.password)
+
+      assert user_id == user.id
+    end
+
+    test "returns nil when password is invalid" do
+      attrs = valid_user_attributes()
+      {:ok, _user} = Accounts.register_user(attrs)
+
+      assert is_nil(Accounts.get_user_by_email_and_password(attrs.email, "wrong-password"))
+    end
+  end
+
   describe "get_user!/1" do
     test "raises if id is invalid" do
       assert_raise Ecto.NoResultsError, fn ->

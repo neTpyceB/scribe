@@ -1,9 +1,12 @@
 defmodule SocialScribeWeb.UserSessionControllerTest do
   use SocialScribeWeb.ConnCase, async: true
 
+  alias SocialScribe.RateLimiter
+
   import SocialScribe.AccountsFixtures
 
   setup do
+    :ok = RateLimiter.reset()
     %{user: user_fixture()}
   end
 
@@ -92,6 +95,36 @@ defmodule SocialScribeWeb.UserSessionControllerTest do
 
       assert Phoenix.Flash.get(conn.assigns.flash, :error) == "Invalid email or password"
       assert redirected_to(conn) == ~p"/"
+    end
+
+    test "rejects login when password is wrong for existing email", %{conn: conn, user: user} do
+      conn =
+        post(conn, ~p"/users/log_in", %{
+          "user" => %{"email" => user.email, "password" => "definitely-wrong-password"}
+        })
+
+      refute get_session(conn, :user_token)
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) == "Invalid email or password"
+      assert redirected_to(conn) == ~p"/"
+    end
+
+    test "rate-limits repeated login attempts from same client ip", %{conn: conn} do
+      for _ <- 1..20 do
+        conn =
+          post(conn, ~p"/users/log_in", %{
+            "user" => %{"email" => "invalid@email.com", "password" => "invalid_password"}
+          })
+
+        assert redirected_to(conn) == ~p"/"
+      end
+
+      limited_conn =
+        post(conn, ~p"/users/log_in", %{
+          "user" => %{"email" => "invalid@email.com", "password" => "invalid_password"}
+        })
+
+      assert redirected_to(limited_conn) == ~p"/"
+      assert Phoenix.Flash.get(limited_conn.assigns.flash, :error) =~ "Too many login attempts"
     end
   end
 

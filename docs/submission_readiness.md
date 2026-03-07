@@ -5,6 +5,7 @@ Single source of truth for what is completed and ready to submit for the challen
 
 ## Related QA Artifact
 1. End-to-end runbook and evidence template: `docs/end_to_end_qa_notes.md`
+2. Security and failure-mode review notes: `docs/security_architecture_review.md`
 
 ## Submission Links
 1. Repository: `https://github.com/neTpyceB/scribe`
@@ -45,6 +46,8 @@ Single source of truth for what is completed and ready to submit for the challen
 18. Settings now show selected Facebook page identity (name + page ID) for operator clarity.
 19. Google disconnect flow is hardened: disconnect safely preserves historical meeting/bot records and logs the user out when the last Google account is disconnected.
 20. Auth route compatibility improved: legacy/manual `GET /users/log_in` now redirects to `/` to avoid missing-route failures.
+21. Password login flow hardened: strict email+password verification and IP-based login rate limiting added to reduce brute-force abuse.
+22. CI now runs `mix hex.audit`, and production enables `force_ssl` + HSTS via proxy-aware config.
 
 ## Test Status
 1. Full Docker test suite: green (`12 properties, 283 tests, 0 failures`).
