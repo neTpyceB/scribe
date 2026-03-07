@@ -210,7 +210,11 @@
         placeholder="Search by name, email, phone, or ID"
       />
       <:actions>
-        <.button type="submit" class="bg-blue-600 hover:bg-blue-700" disabled={@salesforce_searching}>
+        <.button
+          type="submit"
+          class="bg-blue-600 hover:bg-blue-700"
+          disabled={@salesforce_searching}
+        >
           <%= if @salesforce_searching do %>
             Searching...
           <% else %>
@@ -228,12 +232,19 @@
       {@salesforce_search_error}
     </p>
 
-    <p :if={@salesforce_search_notice} id="salesforce-search-notice" class="text-sm text-amber-700">
+    <p
+      :if={@salesforce_search_notice}
+      id="salesforce-search-notice"
+      class="text-sm text-amber-700"
+    >
       {@salesforce_search_notice}
     </p>
 
     <p
-      :if={@salesforce_search_attempted && Enum.empty?(@salesforce_contacts) && !@salesforce_search_error}
+      :if={
+        @salesforce_search_attempted && Enum.empty?(@salesforce_contacts) &&
+          !@salesforce_search_error
+      }
       id="salesforce-search-empty"
       class="text-sm text-slate-500"
     >
@@ -252,7 +263,9 @@
           disabled={@salesforce_selecting_contact || @salesforce_searching}
           class="w-full px-3 py-2 text-left hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          <p class="text-sm font-medium text-slate-800">{contact.display_name || contact.email || contact.id}</p>
+          <p class="text-sm font-medium text-slate-800">
+            {contact.display_name || contact.email || contact.id}
+          </p>
           <p class="text-xs text-slate-500">{contact.email || "No email"} · {contact.id}</p>
         </button>
       </div>
@@ -266,12 +279,17 @@
       Loading selected contact and processing transcript suggestions...
     </div>
 
-    <div :if={@salesforce_selected_contact} id="salesforce-selected-contact" class="rounded-md border border-blue-100 bg-blue-50 p-3">
+    <div
+      :if={@salesforce_selected_contact}
+      id="salesforce-selected-contact"
+      class="rounded-md border border-blue-100 bg-blue-50 p-3"
+    >
       <div class="flex items-start justify-between gap-3">
         <div>
           <p class="text-sm font-semibold text-blue-900">Selected Contact</p>
           <p class="text-sm text-blue-900">
-            {@salesforce_selected_contact.display_name || @salesforce_selected_contact.email || @salesforce_selected_contact.id}
+            {@salesforce_selected_contact.display_name || @salesforce_selected_contact.email ||
+              @salesforce_selected_contact.id}
           </p>
           <p class="text-xs text-blue-800">{@salesforce_selected_contact.email || "No email"}</p>
           <p class="text-xs text-blue-800">{@salesforce_selected_contact.id}</p>
@@ -284,6 +302,54 @@
           Clear
         </button>
       </div>
+    </div>
+
+    <div
+      :if={@show_salesforce_mapping_editor}
+      id="salesforce-mapping-editor"
+      class="rounded-md border border-slate-200 bg-slate-50 p-4 space-y-3"
+    >
+      <div>
+        <p class="text-sm font-semibold text-slate-800">Update Salesforce field mapping</p>
+        <p class="text-xs text-slate-600">
+          Map transcript field <strong>{@salesforce_mapping_form[:source_field].value}</strong>
+          to a different Salesforce field for future suggestions.
+        </p>
+      </div>
+
+      <.simple_form
+        id="salesforce-mapping-form"
+        for={@salesforce_mapping_form}
+        phx-submit="save_salesforce_mapping"
+      >
+        <.input field={@salesforce_mapping_form[:source_field]} type="hidden" />
+
+        <.input
+          field={@salesforce_mapping_form[:target_field]}
+          type="select"
+          label="Target Salesforce Field"
+          options={@salesforce_mapping_options}
+        />
+
+        <p
+          :if={@salesforce_mapping_error}
+          id="salesforce-mapping-error"
+          class="text-sm text-red-600"
+        >
+          {@salesforce_mapping_error}
+        </p>
+
+        <:actions>
+          <button
+            type="button"
+            phx-click="close_salesforce_mapping"
+            class="inline-flex items-center px-3 py-2 border border-slate-300 text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+          <.button type="submit" class="bg-blue-600 hover:bg-blue-700">Save mapping</.button>
+        </:actions>
+      </.simple_form>
     </div>
 
     <div :if={@salesforce_selected_contact} id="salesforce-suggestions-section" class="space-y-2">
@@ -306,18 +372,22 @@
         phx-submit="apply_salesforce_updates"
         phx-change="toggle_salesforce_suggestion"
       >
-        <.suggestion_card :for={suggestion <- @salesforce_suggestions} suggestion={suggestion} />
+        <.suggestion_card
+          :for={suggestion <- @salesforce_suggestions}
+          suggestion={suggestion}
+          mapping_event="open_salesforce_mapping"
+        />
 
         <.modal_footer
           cancel_click="close_salesforce_review"
           submit_text="Update Salesforce"
           submit_class="bg-blue-600 hover:bg-blue-700"
-          loading={false}
+          loading={@salesforce_updating}
+          loading_text="Updating Salesforce..."
           disabled={@salesforce_selected_count == 0}
           info_text={"1 object, #{@salesforce_selected_count} fields selected to update"}
         />
       </form>
     </div>
-
   </div>
 </.modal>

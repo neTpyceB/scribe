@@ -8,7 +8,7 @@ defmodule SocialScribe.Accounts do
   alias SocialScribe.Repo
   alias Ueberauth.Auth
 
-  alias SocialScribe.Accounts.{User, UserToken, UserCredential}
+  alias SocialScribe.Accounts.{User, UserToken, UserCredential, SalesforceFieldMapping}
 
   ## Database getters
 
@@ -230,6 +230,44 @@ defmodule SocialScribe.Accounts do
   """
   def change_user_credential(%UserCredential{} = user_credential, attrs \\ %{}) do
     UserCredential.changeset(user_credential, attrs)
+  end
+
+  ## Salesforce field mappings
+
+  @doc """
+  Returns all Salesforce field mappings configured by a user.
+  """
+  def list_user_salesforce_field_mappings(user_id) when is_integer(user_id) do
+    from(m in SalesforceFieldMapping, where: m.user_id == ^user_id)
+    |> Repo.all()
+  end
+
+  @doc """
+  Returns Salesforce field mappings as `%{source_field => target_field}` for a user.
+  """
+  def get_user_salesforce_field_mappings_map(user_id) when is_integer(user_id) do
+    list_user_salesforce_field_mappings(user_id)
+    |> Map.new(fn mapping -> {mapping.source_field, mapping.target_field} end)
+  end
+
+  @doc """
+  Creates or updates a Salesforce field mapping for a user.
+  """
+  def upsert_user_salesforce_field_mapping(user_id, source_field, target_field)
+      when is_integer(user_id) and is_binary(source_field) and is_binary(target_field) do
+    attrs = %{user_id: user_id, source_field: source_field, target_field: target_field}
+
+    case Repo.get_by(SalesforceFieldMapping, user_id: user_id, source_field: source_field) do
+      nil ->
+        %SalesforceFieldMapping{}
+        |> SalesforceFieldMapping.changeset(attrs)
+        |> Repo.insert()
+
+      %SalesforceFieldMapping{} = mapping ->
+        mapping
+        |> SalesforceFieldMapping.changeset(attrs)
+        |> Repo.update()
+    end
   end
 
   ## OAuth

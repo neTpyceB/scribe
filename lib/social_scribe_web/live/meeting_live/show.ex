@@ -3,7 +3,9 @@ defmodule SocialScribeWeb.MeetingLive.Show do
 
   import SocialScribeWeb.PlatformLogo
   import SocialScribeWeb.ClipboardButton
-  import SocialScribeWeb.ModalComponents, only: [hubspot_modal: 1, suggestion_card: 1, modal_footer: 1, empty_state: 1]
+
+  import SocialScribeWeb.ModalComponents,
+    only: [hubspot_modal: 1, suggestion_card: 1, modal_footer: 1, empty_state: 1]
 
   alias SocialScribe.Meetings
   alias SocialScribe.Automations
@@ -12,6 +14,7 @@ defmodule SocialScribeWeb.MeetingLive.Show do
   alias SocialScribe.SalesforceApiBehaviour, as: SalesforceApi
   alias SocialScribe.HubspotSuggestions
   alias SocialScribe.SalesforceSuggestions
+  alias SocialScribe.SalesforceFields
 
   @impl true
   def mount(%{"id" => meeting_id}, _session, socket) do
@@ -37,6 +40,9 @@ defmodule SocialScribeWeb.MeetingLive.Show do
       salesforce_credential =
         Accounts.get_user_salesforce_credential(socket.assigns.current_user.id)
 
+      salesforce_field_mappings =
+        Accounts.get_user_salesforce_field_mappings_map(socket.assigns.current_user.id)
+
       socket =
         socket
         |> assign(:page_title, "Meeting Details: #{meeting.title}")
@@ -58,6 +64,17 @@ defmodule SocialScribeWeb.MeetingLive.Show do
         |> assign(:salesforce_suggestions, [])
         |> assign(:salesforce_selected_count, 0)
         |> assign(:salesforce_suggestions_loading, false)
+        |> assign(:salesforce_updating, false)
+        |> assign(:salesforce_field_mappings, salesforce_field_mappings)
+        |> assign(:salesforce_mapping_options, salesforce_mapping_options())
+        |> assign(:show_salesforce_mapping_editor, false)
+        |> assign(:salesforce_mapping_error, nil)
+        |> assign(:salesforce_mapping_saving, false)
+        |> assign(:salesforce_mapping_source_field, nil)
+        |> assign(
+          :salesforce_mapping_form,
+          to_form(%{"source_field" => "", "target_field" => ""}, as: :salesforce_mapping)
+        )
         |> assign(
           :follow_up_email_form,
           to_form(%{
@@ -98,16 +115,127 @@ defmodule SocialScribeWeb.MeetingLive.Show do
 
   @impl true
   def handle_event("open_salesforce_review", _params, socket) do
-    {:noreply, assign(socket, :show_salesforce_modal, true)}
+    {:noreply,
+     socket
+     |> assign(:show_salesforce_modal, true)
+     |> assign(:show_salesforce_mapping_editor, false)
+     |> assign(:salesforce_mapping_error, nil)}
   end
 
   @impl true
   def handle_event("close_salesforce_review", _params, socket) do
-    {:noreply, assign(socket, :show_salesforce_modal, false)}
+    {:noreply,
+     socket
+     |> assign(:show_salesforce_modal, false)
+     |> assign(:show_salesforce_mapping_editor, false)
+     |> assign(:salesforce_mapping_error, nil)}
   end
 
   @impl true
-  def handle_event("salesforce_contact_search", %{"salesforce_search" => %{"query" => query}}, socket) do
+  def handle_event("open_salesforce_mapping", %{"field" => source_field}, socket) do
+    if SalesforceFields.valid_field?(source_field) do
+      target_field = Map.get(socket.assigns.salesforce_field_mappings, source_field, source_field)
+
+      {:noreply,
+       socket
+       |> assign(:show_salesforce_mapping_editor, true)
+       |> assign(:salesforce_mapping_error, nil)
+       |> assign(:salesforce_mapping_source_field, source_field)
+       |> assign(:salesforce_mapping_saving, false)
+       |> assign(
+         :salesforce_mapping_form,
+         to_form(
+           %{"source_field" => source_field, "target_field" => target_field},
+           as: :salesforce_mapping
+         )
+       )}
+    else
+      {:noreply,
+       assign(socket, :salesforce_search_error, "Unsupported Salesforce field mapping.")}
+    end
+  end
+
+  @impl true
+  def handle_event("close_salesforce_mapping", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:show_salesforce_mapping_editor, false)
+     |> assign(:salesforce_mapping_error, nil)
+     |> assign(:salesforce_mapping_saving, false)
+     |> assign(:salesforce_mapping_source_field, nil)}
+  end
+
+  @impl true
+  def handle_event("save_salesforce_mapping", %{"salesforce_mapping" => params}, socket) do
+    source_field = String.trim(Map.get(params, "source_field", ""))
+    target_field = String.trim(Map.get(params, "target_field", ""))
+
+    cond do
+      !SalesforceFields.valid_field?(source_field) ->
+        {:noreply, assign(socket, :salesforce_mapping_error, "Invalid source field.")}
+
+      !SalesforceFields.valid_field?(target_field) ->
+        {:noreply, assign(socket, :salesforce_mapping_error, "Select a valid Salesforce field.")}
+
+      true ->
+        case Accounts.upsert_user_salesforce_field_mapping(
+               socket.assigns.current_user.id,
+               source_field,
+               target_field
+             ) do
+          {:ok, _mapping} ->
+            mappings =
+              Map.put(socket.assigns.salesforce_field_mappings, source_field, target_field)
+
+            socket =
+              socket
+              |> assign(:salesforce_field_mappings, mappings)
+              |> assign(:show_salesforce_mapping_editor, false)
+              |> assign(:salesforce_mapping_error, nil)
+              |> assign(:salesforce_mapping_saving, false)
+              |> assign(:salesforce_mapping_source_field, nil)
+              |> put_flash(:info, "Salesforce field mapping updated.")
+
+            if socket.assigns.salesforce_selected_contact do
+              meeting = Meetings.get_meeting_with_details(socket.assigns.meeting.id)
+
+              {suggestions, search_error} =
+                case SalesforceSuggestions.generate_suggestions(
+                       meeting,
+                       socket.assigns.salesforce_selected_contact,
+                       field_mappings: mappings
+                     ) do
+                  {:ok, suggestions} -> {suggestions, nil}
+                  {:error, reason} -> {[], format_salesforce_suggestions_error(reason)}
+                end
+
+              {:noreply,
+               socket
+               |> assign(:meeting, meeting)
+               |> assign(:salesforce_suggestions, suggestions)
+               |> assign(:salesforce_selected_count, Enum.count(suggestions, & &1.apply))
+               |> assign(:salesforce_search_error, search_error)}
+            else
+              {:noreply, socket}
+            end
+
+          {:error, _changeset} ->
+            {:noreply,
+             assign(
+               socket,
+               :salesforce_mapping_error,
+               "Failed to save mapping. Please review fields and try again."
+             )}
+        end
+    end
+  end
+
+  @impl true
+  def handle_event(
+        "salesforce_contact_search",
+        %{"salesforce_search" => %{"query" => query}},
+        socket
+      ) do
     query = String.trim(query || "")
     credential = socket.assigns.salesforce_credential
 
@@ -200,8 +328,49 @@ defmodule SocialScribeWeb.MeetingLive.Show do
   end
 
   @impl true
-  def handle_event("apply_salesforce_updates", _params, socket) do
-    {:noreply, put_flash(socket, :info, "Salesforce update action is the next implementation step.")}
+  def handle_event("apply_salesforce_updates", params, socket) do
+    credential = socket.assigns.salesforce_credential
+    selected_contact = socket.assigns.salesforce_selected_contact
+
+    cond do
+      is_nil(credential) ->
+        {:noreply,
+         assign(socket, :salesforce_search_error, "Salesforce account is not connected.")}
+
+      is_nil(selected_contact) ->
+        {:noreply, assign(socket, :salesforce_search_error, "Select a Salesforce contact first.")}
+
+      true ->
+        values = Map.get(params, "values", %{})
+
+        suggestions_with_values =
+          Enum.map(socket.assigns.salesforce_suggestions, fn suggestion ->
+            new_value = Map.get(values, suggestion.field, suggestion.new_value)
+            %{suggestion | new_value: new_value}
+          end)
+
+        updates_list =
+          suggestions_with_values
+          |> Enum.filter(& &1.apply)
+          |> Enum.map(fn s -> %{field: s.field, new_value: s.new_value, apply: true} end)
+
+        if Enum.empty?(updates_list) do
+          {:noreply,
+           assign(socket, :salesforce_search_error, "Select at least one field to update.")}
+        else
+          send(
+            self(),
+            {:apply_salesforce_updates, credential, selected_contact.id, updates_list,
+             socket.assigns.meeting}
+          )
+
+          {:noreply,
+           socket
+           |> assign(:salesforce_suggestions, suggestions_with_values)
+           |> assign(:salesforce_updating, true)
+           |> assign(:salesforce_search_error, nil)}
+        end
+    end
   end
 
   @impl true
@@ -264,7 +433,11 @@ defmodule SocialScribeWeb.MeetingLive.Show do
     case SalesforceApi.get_contact(credential, contact_id) do
       {:ok, contact} ->
         {suggestions, search_error} =
-          case SalesforceSuggestions.generate_suggestions(meeting, contact) do
+          case SalesforceSuggestions.generate_suggestions(
+                 meeting,
+                 contact,
+                 field_mappings: socket.assigns.salesforce_field_mappings
+               ) do
             {:ok, suggestions} ->
               {suggestions, nil}
 
@@ -272,10 +445,13 @@ defmodule SocialScribeWeb.MeetingLive.Show do
               {[], format_salesforce_suggestions_error(reason)}
           end
 
+        refreshed_meeting = Meetings.get_meeting_with_details(meeting.id)
+
         {:noreply,
          socket
+         |> assign(:meeting, refreshed_meeting)
          |> assign(:salesforce_selected_contact, contact)
-          |> assign(:salesforce_suggestions, suggestions)
+         |> assign(:salesforce_suggestions, suggestions)
          |> assign(:salesforce_selected_count, Enum.count(suggestions, & &1.apply))
          |> assign(:salesforce_suggestions_loading, false)
          |> assign(:salesforce_selecting_contact, false)
@@ -289,6 +465,62 @@ defmodule SocialScribeWeb.MeetingLive.Show do
          |> assign(:salesforce_selecting_contact, false)
          |> assign(:salesforce_selecting_contact_id, nil)
          |> assign(:salesforce_search_error, format_salesforce_error(reason))}
+    end
+  end
+
+  @impl true
+  def handle_info(
+        {:apply_salesforce_updates, credential, contact_id, updates_list, meeting},
+        socket
+      ) do
+    case SalesforceApi.apply_updates(credential, contact_id, updates_list) do
+      {:ok, :no_updates} ->
+        {:noreply,
+         socket
+         |> assign(:salesforce_updating, false)
+         |> assign(:salesforce_search_error, "Select at least one field to update.")}
+
+      {:ok, _response} ->
+        case SalesforceApi.get_contact(credential, contact_id) do
+          {:ok, refreshed_contact} ->
+            refreshed_meeting = Meetings.get_meeting_with_details(meeting.id)
+
+            {suggestions, suggestion_error} =
+              case SalesforceSuggestions.generate_suggestions(
+                     refreshed_meeting,
+                     refreshed_contact,
+                     field_mappings: socket.assigns.salesforce_field_mappings
+                   ) do
+                {:ok, suggestions} -> {suggestions, nil}
+                {:error, reason} -> {[], format_salesforce_suggestions_error(reason)}
+              end
+
+            {:noreply,
+             socket
+             |> assign(:salesforce_updating, false)
+             |> assign(:meeting, refreshed_meeting)
+             |> assign(:salesforce_selected_contact, refreshed_contact)
+             |> assign(:salesforce_suggestions, suggestions)
+             |> assign(:salesforce_selected_count, Enum.count(suggestions, & &1.apply))
+             |> assign(:salesforce_search_error, suggestion_error)
+             |> put_flash(
+               :info,
+               "Successfully updated #{length(updates_list)} field(s) in Salesforce."
+             )}
+
+          {:error, reason} ->
+            {:noreply,
+             socket
+             |> assign(:salesforce_updating, false)
+             |> assign(:salesforce_search_error, format_salesforce_error(reason))
+             |> put_flash(:info, "Updated Salesforce, but failed to reload contact details.")}
+        end
+
+      {:error, reason} ->
+        {:noreply,
+         socket
+         |> assign(:salesforce_updating, false)
+         |> assign(:salesforce_search_error, format_salesforce_update_error(reason))}
     end
   end
 
@@ -375,6 +607,18 @@ defmodule SocialScribeWeb.MeetingLive.Show do
   defp format_salesforce_suggestions_error(_reason),
     do: "Failed to generate Salesforce suggestions from transcript."
 
+  defp format_salesforce_update_error({:api_error, 401, body}),
+    do: format_salesforce_error({:api_error, 401, body})
+
+  defp format_salesforce_update_error({:api_error, _status, _body}),
+    do: "Failed to update Salesforce contact."
+
+  defp format_salesforce_update_error({:http_error, _reason}),
+    do: "Network error while updating Salesforce. Please try again."
+
+  defp format_salesforce_update_error(_reason),
+    do: "Failed to update Salesforce contact."
+
   defp salesforce_invalid_session?(body) when is_list(body) do
     Enum.any?(body, fn
       %{"errorCode" => "INVALID_SESSION_ID"} -> true
@@ -389,6 +633,11 @@ defmodule SocialScribeWeb.MeetingLive.Show do
   end
 
   defp salesforce_invalid_session?(_), do: false
+
+  defp salesforce_mapping_options do
+    SalesforceFields.allowed_fields()
+    |> Enum.map(fn field -> {SalesforceFields.label(field), field} end)
+  end
 
   defp format_duration(nil), do: "N/A"
 

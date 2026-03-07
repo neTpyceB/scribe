@@ -1,16 +1,23 @@
 # Integration Accounts Checklist
 
 ## Purpose
-Track all external accounts and OAuth apps required for full end-to-end functionality.
+Track external accounts and OAuth apps needed to pass the challenge without ambiguity.
 
-## Required Services
+## Hard-Required Integrations For This Challenge
 1. Google Cloud OAuth App
 2. Recall.ai account and API key
 3. Google Gemini API key
 4. HubSpot OAuth App
 5. Salesforce Connected App
-6. LinkedIn OAuth App
-7. Facebook App (plus page permissions)
+
+## Optional Integrations (Not Required To Pass This Challenge)
+1. LinkedIn OAuth App
+2. Facebook App (plus page permissions)
+
+## Why HubSpot Is Still In Hard-Required
+1. The challenge states HubSpot suggestions already work in existing functionality.
+2. Submission should not regress existing required behavior.
+3. Minimum expectation is a smoke test confirming HubSpot flow still works.
 
 ## Required Outputs Per Integration
 1. Client ID
@@ -29,8 +36,21 @@ Track all external accounts and OAuth apps required for full end-to-end function
 6. LinkedIn: `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, `LINKEDIN_REDIRECT_URI`
 7. Facebook: `FACEBOOK_CLIENT_ID`, `FACEBOOK_CLIENT_SECRET`, `FACEBOOK_REDIRECT_URI`
 
-## Validation Checklist
+## Validation Checklist (Hard-Required Path)
 1. OAuth callback works in localhost.
 2. OAuth callback works in deployed environment.
 3. Tokens are stored and refreshed correctly.
-4. Required API scopes are sufficient for search/read/update flows.
+4. Required API scopes are sufficient for challenge flows (calendar sync, recording, transcript AI, HubSpot suggestions, Salesforce search/read/update).
+
+## Final Submission Smoke Checklist (Hard Requirements)
+1. Google login works.
+2. Upcoming events are visible.
+3. Meeting toggle schedules Recall bot.
+4. Completed meeting appears in past meetings.
+5. Transcript view loads.
+6. AI follow-up email loads.
+7. HubSpot suggestion flow still works.
+8. Salesforce connect works.
+9. Salesforce contact search/select works.
+10. Salesforce suggestions generate from transcript.
+11. Salesforce updates apply and are visible in Salesforce.

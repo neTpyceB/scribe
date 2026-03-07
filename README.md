@@ -10,6 +10,7 @@ Social Scribe is a powerful Elixir and Phoenix LiveView application designed to 
 
 This repository is currently being upgraded for the Salesforce challenge requirements and Docker-first local development workflow.  
 Use the documentation hub below as the source of truth for active execution standards and plans.
+Latest implemented item: Salesforce modal now supports persisted per-user field mapping (`Update mapping`) and `Update Salesforce` end-to-end flow.
 
 ## Documentation Hub
 
