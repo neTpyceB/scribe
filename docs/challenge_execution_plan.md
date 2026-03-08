@@ -75,9 +75,6 @@ Deliver a complete, production-style submission for the Scribe challenge that is
 67. Added user-controlled admin visibility mode on Dashboard Home (`I am admin`): Analytics/Health/Runbook routes are now access-gated and hidden from sidebar unless enabled, and Top Advice is shown only in admin mode.
 68. Added LinkedIn OAuth transient callback recovery: one-time automatic retry for `OAuth2 Unknown error` failures with session-based loop guard and controller test coverage.
 
-### In Progress
-1. Step 8: Finalize docs and verification.
-
 ## Salesforce Modal Atomic Plan
 
 1. Step 1: Salesforce API layer
